@@ -1,5 +1,7 @@
 # Importing required python libraries
 from scapy.all import * # Scapy library for Network WiFi Sniffing
+import csv # for writing the captured data to a csv file
+import os # checking status of files/directories
 
 '''
     For this script to work, the specified iface for packet sniffing
@@ -18,14 +20,10 @@ ACCESS_POINT_TYPE = 8
 PACKET_REQUEST_SUBTYPE = 4
 PROBE_RESPONSE = 5
 
+CSV_PATH = "/home/pi/Desktop/CSV_Files/"
+
 # List of access points on WLAN network - List by MAC addresses
 access_points = []
-
-# List responses received
-probe_responses = [{}]
-
-# List requests received
-probe_requests = [{}]
 
 # Method to be invoked in sniff() method available from scapy library
 # Scan packets across a network interface, retrieve required data
@@ -36,14 +34,63 @@ def sniff_probes(packet):
         if packet.type == PROBE_REQUEST_TYPE and packet.subtype == PACKET_REQUEST_SUBTYPE:
             sender_MAC = packet.addr2 # MAC address of device sendig probes
             SSID = packet.info # SSID of network
+            signal_str = -(256 - ord(packet.notdecoded[-4:-3])) # Signal strength received
+            time = packet.time # time packet was received
+            
             print("Client with MAC: %s probing for SSID %s"
                   % (sender_MAC, SSID))
-            signal_str = -(256 - ord(packet.notdecoded[-4:-3])) # Signal strength received
-            print("Signal Strength %s" %(signal_str))
+            
+            # Write probe request results to a CSV file
+            # Open file - if exists, append to, otherwise create new file
+            if not os.path.isfile(CSV_PATH + "probe_requests.csv"):
+                with open(CSV_PATH + "probe_requests.csv", mode="w") as csv_file:
+                    fields = ['sender_address', 'ssid', 'timestamp', 'rssi'] # list of attribute names
+                    writer = csv.DictWriter(csv_file, fieldnames=fields) # init writer for writing to csv file
+
+                    writer.writeheader() # construct header for csv file
+                
+                    # Create row data using attributes and data collected in probe requests
+                    row_data = {'sender_address' : sender_MAC, 'ssid': SSID, 'timestamp': time, 'rssi': signal_str}
+                    writer.writerow(row_data) # Write row to csv file
+            else:
+                with open(CSV_PATH + "probe_requests.csv", mode="a") as csv_file:
+                    fields = ['sender_address', 'ssid', 'timestamp', 'rssi'] # list of attribute names
+                    writer = csv.DictWriter(csv_file, fieldnames=fields) # init writer for writing to csv file
+                
+                    # Create row data using attributes and data collected in probe requests
+                    row_data = {'sender_address' : sender_MAC, 'ssid': SSID, 'timestamp': time, 'rssi': signal_str}
+                    writer.writerow(row_data) # Write row to csv file
+            
         # sniffing probe responses
         if packet.type == PROBE_REQUEST_TYPE and packet.subtype == PROBE_RESPONSE:
             destination_MAC = packet.addr1 # MAC address of original probing device
             ap_MAC = packet.addr2 # Addr2 is Sender address, also stored in Addr3 as AP MAC
+            SSID = packet.info # SSID of network
+            time = packet.time # time of response
+
+            # Filter by specifc SSID WLAN1
+            if str(SSID) == "b'WLAN1'": 
+                # Write probe response results to a CSV file
+                # Open file - if exists, append to, otherwise create new file
+                if not os.path.isfile(CSV_PATH + "probe_responses.csv"):
+                    with open(CSV_PATH + "probe_responses.csv", mode="w") as csv_file:
+                        fields = ['ap_address', 'receiver_address', 'ssid', 'timestamp'] # list of attribute names
+                        writer = csv.DictWriter(csv_file, fieldnames=fields) # init writer for writing to csv file
+
+                        writer.writeheader() # construct header for csv file
+                
+                        # Create row data using attributes and data collected in probe responses
+                        row_data = {'ap_address' : ap_MAC, 'receiver_address': destination_MAC , 'ssid': SSID, 'timestamp': time}
+                        writer.writerow(row_data) # Write row to csv file
+                else:
+                    with open(CSV_PATH + "probe_responses.csv", mode="a") as csv_file:
+                        fields = ['ap_address', 'receiver_address', 'ssid', 'timestamp'] # list of attribute names
+                        writer = csv.DictWriter(csv_file, fieldnames=fields) # init writer for writing to csv file
+                
+                        # Create row data using attributes and data collected in probe requests
+                        row_data = {'ap_address' : ap_MAC, 'receiver_address': destination_MAC , 'ssid': SSID, 'timestamp': time}
+                        writer.writerow(row_data) # Write row to csv file
+
             
 def main():
     sniff(iface="wlan1",prn=sniff_probes)
