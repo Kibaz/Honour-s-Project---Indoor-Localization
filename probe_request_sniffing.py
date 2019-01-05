@@ -37,8 +37,8 @@ def sniff_probes(packet):
             signal_str = -(256 - ord(packet.notdecoded[-4:-3])) # Signal strength received
             time = packet.time # time packet was received
             
-            print("Client with MAC: %s probing for SSID %s"
-                  % (sender_MAC, SSID))
+            print("Client with MAC: %s probing for SSID %s at RSSI %s"
+                  % (sender_MAC, SSID, signal_str))
             
             # Write probe request results to a CSV file
             # Open file - if exists, append to, otherwise create new file
@@ -64,12 +64,15 @@ def sniff_probes(packet):
         # sniffing probe responses
         if packet.type == PROBE_REQUEST_TYPE and packet.subtype == PROBE_RESPONSE:
             destination_MAC = packet.addr1 # MAC address of original probing device
-            ap_MAC = packet.addr2 # Addr2 is Sender address, also stored in Addr3 as AP MAC
+            ap_MAC = packet.addr3 # Addr2 is Sender address, also stored in Addr3 as AP MAC
             SSID = packet.info # SSID of network
             time = packet.time # time of response
 
+            print("Access Point with MAC: %s responding to Client with MAC: %s on SSID %s"
+                  %(ap_MAC, destination_MAC, SSID))
+            
             # Filter by specifc SSID WLAN1
-            if str(SSID) == "b'WLAN1'": 
+            if str(SSID) == "b'WLAN1'" or str(SSID) == "b'DTEC'": 
                 # Write probe response results to a CSV file
                 # Open file - if exists, append to, otherwise create new file
                 if not os.path.isfile(CSV_PATH + "probe_responses.csv"):
