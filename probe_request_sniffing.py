@@ -21,36 +21,32 @@ PROBE_RESPONSE = 5
 # List of access points on WLAN network - List by MAC addresses
 access_points = []
 
+# List responses received
+probe_responses = [{}]
 
+# List requests received
+probe_requests = [{}]
 
-def sniff_probe_requests(packet):
+# Method to be invoked in sniff() method available from scapy library
+# Scan packets across a network interface, retrieve required data
+# Scan for RSSI, SSID, MAC Addresses etc...
+def sniff_probes(packet):
     if packet.haslayer(Dot11):
+        # sniffing for probe requests
         if packet.type == PROBE_REQUEST_TYPE and packet.subtype == PACKET_REQUEST_SUBTYPE:
-            sender_MAC = packet.addr2
-            SSID = packet.info
+            sender_MAC = packet.addr2 # MAC address of device sendig probes
+            SSID = packet.info # SSID of network
             print("Client with MAC: %s probing for SSID %s"
                   % (sender_MAC, SSID))
-            signal_str = -(256 - ord(packet.notdecoded[-4:-3]))
+            signal_str = -(256 - ord(packet.notdecoded[-4:-3])) # Signal strength received
             print("Signal Strength %s" %(signal_str))
-
-"""
-For monitoring probe responses
-This can be useful in identifying
-the access points receiving particular
-requests
-"""
-def sniff_probe_responses(packet):
-    if packet.haslayer(Dot11):
+        # sniffing probe responses
         if packet.type == PROBE_REQUEST_TYPE and packet.subtype == PROBE_RESPONSE:
-            SSID = packet.info
+            destination_MAC = packet.addr1 # MAC address of original probing device
             ap_MAC = packet.addr2 # Addr2 is Sender address, also stored in Addr3 as AP MAC
-            device_MAC = packet.addr1 # MAC address of original probing device
-            signal_str = -(256 - ord(packet.notdecoded[-4:-3])) # Retrieve signal strength
-            print("Access Point with MAC: %s responding to probe request for SSIS %s. Request sent from MAC: %s"
-                  %(ap_MAC,SSID,device_MAC))
-            print("Signal Strength: %s" %(signal_str))
+            
 def main():
-    sniff(iface="wlan1", prn=sniff_probe_requests)
+    sniff(iface="wlan1",prn=sniff_probes)
 
 if __name__ == '__main__':
     main()
