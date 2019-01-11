@@ -2,6 +2,9 @@
 from scapy.all import * # Scapy library for Network WiFi Sniffing
 import csv # for writing the captured data to a csv file
 import os # checking status of files/directories
+import subprocess # for configuring monitor mode
+
+import socket # for transmitting data to the localisation server
 
 '''
     For this script to work, the specified iface for packet sniffing
@@ -16,16 +19,18 @@ import os # checking status of files/directories
 
 # Constants
 PROBE_REQUEST_TYPE = 0
-ACCESS_POINT_TYPE = 8
 PACKET_REQUEST_SUBTYPE = 4
-PROBE_RESPONSE = 5
+SERVER_ADDRESS = "192.168.9.23" # IP Address of localisation server - subject to change upon location
+SERVER_PORT = 8128 # Configured port for localisation server
 
-CSV_PATH = "/home/pi/Desktop/CSV_Files/"
-
+# Exclude the MAC addresses of all Raspberry PIs used in monitoring system
 EXCLUSIONS = ['b8:27:eb:35:2b:60']
 
 # List of access points on WLAN network - List by MAC addresses
 access_points = []
+
+# Create UDP Socket for sending data
+msg_SOCK = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) # Use Internet protocol and UDP
 
 # Method to be invoked in sniff() method available from scapy library
 # Scan packets across a network interface, retrieve required data
@@ -41,81 +46,40 @@ def sniff_probes(packet):
 
             # Filter MAC addresses used in localisation system
             if sender_MAC not in EXCLUSIONS:
+                # Output request information to console
                 print("Client with MAC: %s probing for SSID %s at RSSI %s"
                   % (sender_MAC, SSID, signal_str))
-            
-                # Write probe request results to a CSV file
-                # Open file - if exists, append to, otherwise create new file
-                if not os.path.isfile(CSV_PATH + "probe_requests.csv"):
-                    with open(CSV_PATH + "probe_requests.csv", mode="w") as csv_file:
-                        fields = ['sender_address', 'ssid', 'timestamp', 'rssi'] # list of attribute names
-                        writer = csv.DictWriter(csv_file, fieldnames=fields) # init writer for writing to csv file
-
-                        writer.writeheader() # construct header for csv file
                 
-                        # Create row data using attributes and data collected in probe requests
-                        row_data = {'sender_address' : sender_MAC, 'ssid': SSID, 'timestamp': time, 'rssi': signal_str}
-                        writer.writerow(row_data) # Write row to csv file
-                else:
-                    with open(CSV_PATH + "probe_requests.csv", mode="a") as csv_file:
-                        fields = ['sender_address', 'ssid', 'timestamp', 'rssi'] # list of attribute names
-                        writer = csv.DictWriter(csv_file, fieldnames=fields) # init writer for writing to csv file
+                # Forward requests to localisation server
+                msg = ("REQUEST INFORMATION: sender - %s SSID - %s RSSI - %s Time - %s" %(sender_MAC,SSID,signal_str,time)) # Message containing probe request informatio
+                send_packet(msg) # Send packet to localisation server
                 
-                        # Create row data using attributes and data collected in probe requests
-                        row_data = {'sender_address' : sender_MAC, 'ssid': SSID, 'timestamp': time, 'rssi': signal_str}
-                        writer.writerow(row_data) # Write row to csv file
-            
-        # sniffing probe responses
-        if packet.type == PROBE_REQUEST_TYPE and packet.subtype == PROBE_RESPONSE:
-            destination_MAC = packet.addr1 # MAC address of original probing device
-            ap_MAC = packet.addr3 # Addr2 is Sender address, also stored in Addr3 as AP MAC
-            SSID = packet.info # SSID of network
-            time = packet.time # time of response
 
+# Method to carry out configuration of monitor mode
+def configure_monitor_mode():
+    # Check if correct interface is operating in monitor mode
+    interface_conf = subprocess.Popen(['iwconfig wlan1'], stdout=subprocess.PIPE, shell=True)
+    output = interface_conf.communicate()
+    if not str(output).__contains__("Monitor"):
+        print("Configuring monitor mode...")
+        subprocess.call(['sudo', 'ifconfig', 'wlan1', 'down']) # Bring interface of WiFi adapter down
+        subprocess.call(['sudo', 'iwconfig', 'wlan1', 'mode', 'monitor']) # Configure monitor mode with iwconfig
+        subprocess.call(['sudo', 'ifconfig', 'wlan1', 'up']) # Bring interface of WiFi adapter back up
+        print("Monitor mode configured successfully!")
 
-            # Filter MAC addresses used in localisation system
-            if destination_MAC not in EXCLUSIONS:
-            
-                # Filter by specifc SSID WLAN1
-                if str(SSID) == "b'WLAN1'" or str(SSID) == "b'DTEC'":
-                    print("Access Point with MAC: %s responding to Client with MAC: %s on SSID %s"
-                      %(ap_MAC, destination_MAC, SSID))
-                    # Write probe response results to a CSV file
-                    # Open file - if exists, append to, otherwise create new file
-                    if not os.path.isfile(CSV_PATH + "probe_responses.csv"):
-                        with open(CSV_PATH + "probe_responses.csv", mode="w") as csv_file:
-                            fields = ['ap_address', 'receiver_address', 'ssid', 'timestamp'] # list of attribute names
-                            writer = csv.DictWriter(csv_file, fieldnames=fields) # init writer for writing to csv file
-
-                            writer.writeheader() # construct header for csv file
-                
-                            # Create row data using attributes and data collected in probe responses
-                            row_data = {'ap_address' : ap_MAC, 'receiver_address': destination_MAC , 'ssid': SSID, 'timestamp': time}
-                            writer.writerow(row_data) # Write row to csv file
-                    else:
-                        with open(CSV_PATH + "probe_responses.csv", mode="a") as csv_file:
-                            fields = ['ap_address', 'receiver_address', 'ssid', 'timestamp'] # list of attribute names
-                            writer = csv.DictWriter(csv_file, fieldnames=fields) # init writer for writing to csv file
-                
-                            # Create row data using attributes and data collected in probe requests
-                            row_data = {'ap_address' : ap_MAC, 'receiver_address': destination_MAC , 'ssid': SSID, 'timestamp': time}
-                            writer.writerow(row_data) # Write row to csv file
-                            
-        # Uncomment for sniffing Beacon Frames emitted from Access Points
-        # This section was used to test channel configurations on APs and Cisco WLC
-        # Similar tests were carried out using Wireshark
-        '''if packet.type == PROBE_REQUEST_TYPE and packet.subtype == ACCESS_POINT_TYPE:
-            dest_MAC = packet.addr1
-            ap_MAC = packet.addr2
-            SSID = packet.info
-            time = packet.time
-            rssi = -(256 - ord(packet.notdecoded[-4:-3]))
-            print("Access Point with MAC: %s responding to Client with MAC: %s on SSID %s"
-                      %(ap_MAC, dest_MAC, SSID))'''
+# Method for sending packets of data over UDP socket
+def send_packet(data):
+    data = bytes(data, "utf-8") # Convert string to bytes
+    msg_SOCK.send(data)
+    
 
             
 def main():
+    configure_monitor_mode()
+    msg_SOCK.connect((SERVER_ADDRESS,SERVER_PORT))
+    print("Commencing probe request sniffing...")
     sniff(iface="wlan1",prn=sniff_probes)
+    msg_SOCK.close()
 
 if __name__ == '__main__':
     main()
