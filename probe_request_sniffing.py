@@ -3,6 +3,12 @@ from scapy.all import * # Scapy library for Network WiFi Sniffing
 import csv # for writing the captured data to a csv file
 import os # checking status of files/directories
 import subprocess # for configuring monitor mode
+import _thread # allow operations to run concurrently
+
+# For identifying the underlying host's MAC Address
+from uuid import getnode as mac_address
+# Converting 48 bit integer into MAC Address format
+import re
 
 import socket # for transmitting data to the localisation server
 
@@ -23,11 +29,14 @@ PACKET_REQUEST_SUBTYPE = 4
 SERVER_ADDRESS = "192.168.9.23" # IP Address of localisation server - subject to change upon location
 SERVER_PORT = 8128 # Configured port for localisation server
 
-# Exclude the MAC addresses of all Raspberry PIs used in monitoring system
-EXCLUSIONS = ['b8:27:eb:35:2b:60']
+MAC_ADDRESS = (':'.join(re.findall('..', '%012x' % mac_address()))) # Extract MAC address from underlying host
 
-# List of access points on WLAN network - List by MAC addresses
-access_points = []
+# Exclude the MAC addresses of all Raspberry PIs used in monitoring system
+EXCLUSIONS = ['b8:27:eb:35:2b:60','5c:aa:fd:16:d2:6a',
+              'b8:27:eb:f7:b8:27','b8:27:eb:01:d1:9d']
+
+# List of messages waiting to be sent to localisation server
+messages = []
 
 # Create UDP Socket for sending data
 msg_SOCK = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) # Use Internet protocol and UDP
@@ -49,10 +58,10 @@ def sniff_probes(packet):
                 # Output request information to console
                 print("Client with MAC: %s probing for SSID %s at RSSI %s"
                   % (sender_MAC, SSID, signal_str))
-                
-                # Forward requests to localisation server
-                msg = ("REQUEST INFORMATION: sender - %s SSID - %s RSSI - %s Time - %s" %(sender_MAC,SSID,signal_str,time)) # Message containing probe request informatio
-                send_packet(msg) # Send packet to localisation server
+                print(MAC_ADDRESS)
+                # Construct message to be sent to localisation server
+                msg = ("REQUEST INFORMATION,%s,%s,%s" %(sender_MAC,signal_str,time)) # Message containing probe request information
+                send_info(msg)
                 
 
 # Method to carry out configuration of monitor mode
@@ -68,8 +77,8 @@ def configure_monitor_mode():
         print("Monitor mode configured successfully!")
 
 # Method for sending packets of data over UDP socket
-def send_packet(data):
-    data = bytes(data, "utf-8") # Convert string to bytes
+def send_info(data):
+    data = bytes(data,"utf-8")
     msg_SOCK.send(data)
     
 
