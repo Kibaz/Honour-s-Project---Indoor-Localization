@@ -5,10 +5,13 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.SocketException;
 import java.util.Date;
+import java.util.List;
 
 import dataHandling.DataManager;
+import dataHandling.DeviceData;
 import utils.Maths;
 
+// Based on UDP Protocol
 public class Server {
 	
 	// Constants
@@ -54,6 +57,7 @@ public class Server {
 						// Received packet data in string format
 						String msg = new String(packet.getData(), 0, packet.getLength());
 						// Carry processing of packet information
+						System.out.println(msg + " packet lngth " + packet.getData());
 						processPacket(msg);
 					}
 				} catch (SocketException e) {
@@ -85,8 +89,8 @@ public class Server {
 			double signal_str = Double.parseDouble(data[3]); // The signal strength received
 			/*
 			 * Extracting the time stamp from the message
-			 * Original method sent from python code 
-			 * Timestamp as a float/double value
+			 * Original method sent from Python code 
+			 * Time-stamp as a float/double value
 			 * Convert to long value
 			 * Must multiply by 1000 as Java handles time
 			 * in milliseconds
@@ -96,7 +100,67 @@ public class Server {
 			long timeStamp = tempTimeStamp.longValue();
 			Date dateTime = new Date(timeStamp*1000); // Java handles time in milliseconds
 			
+			/*
+			 * Adding and registering data in the Data Manager
+			 * Must check if monitor and device has already been recognised
+			 * Before appending to the associated data entry
+			 */
+			DeviceData deviceData = new DeviceData(device_MAC,signal_str,dateTime);
+			if(!dataManager.checkMonitorExists(monitor_MAC)) // If monitor has not been registered
+			{
+				dataManager.registerMonitor(monitor_MAC);
+			}
+			
+			if(!dataManager.checkDeviceExists(monitor_MAC, device_MAC)) // If no instance of current device exists (corresponding to monitor)
+			{
+				dataManager.registerDeviceByMonitorAddress(monitor_MAC, device_MAC, deviceData);
+			}
+			
+			// Add the new device data to the corresponding location - in relation to Monitor and Receiver
+			dataManager.addDeviceData(monitor_MAC, device_MAC, deviceData);
+			
 		}
+	}
+	
+	/*
+	 * Process captured data
+	 * Calculate distance from RSSI values received
+	 * 
+	 */
+	public void processData()
+	{
+		new Thread(new Runnable() {
+
+			@Override
+			public void run() {
+				while(listening)
+				{
+					for(String monitor: dataManager.getMonitorData().keySet())
+					{
+						for(String device: dataManager.getMonitorData().get(monitor).keySet())
+						{
+							List<DeviceData> currentData = dataManager.getMonitorData().get(monitor).get(device);
+							for(DeviceData data: currentData)
+							{
+								if(data.getDistance() == null)
+								{
+									double distance = Maths.calculateDistanceFromRSSI(data.getSignalStrength());
+									data.setDistance(distance);
+								}
+								else
+								{
+									System.out.println("MAC ADDRESS: " + data.getMacAddress() + 
+											" Distance: " + data.getDistance() +
+											" Monitor " + monitor);
+								}
+								
+							}
+						}
+					}
+				}
+			}
+			
+		}).start();;
 	}
 
 }

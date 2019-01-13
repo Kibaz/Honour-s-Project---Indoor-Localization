@@ -7,6 +7,7 @@ public class DeviceData {
 	private String macAddress;
 	private double rssi;
 	private Date timeStamp;
+	private Double distance;
 	
 	public DeviceData(String mac, double rssi, Date timeStamp)
 	{
@@ -26,6 +27,16 @@ public class DeviceData {
 	public Date getTimeStamp() {
 		return timeStamp;
 	}
+
+	public Double getDistance() {
+		return distance;
+	}
+
+	public void setDistance(double distance) {
+		this.distance = distance;
+	}
+	
+	
 	
 	
 
