@@ -30,15 +30,18 @@ public class TCPServer {
 				while(true)
 				{
 					try {
-						Socket client = socket.accept();
+						// Wait for client connections
+						Socket clientSocket = socket.accept();
 						
-						System.out.println(client.getInetAddress());
-						BufferedReader br = new BufferedReader(new InputStreamReader(client.getInputStream()));
-						String line = null;
-						while((line = br.readLine())!= null) 
+						// Get input stream from client socket
+						// Configure reader to read the messages sent during the connection
+						BufferedReader reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+						String message = ""; // Store current message
+						while((message = reader.readLine()) != null) // Read each message in input stream
 						{
-							System.out.println(line);
+							System.out.println(message);
 						}
+
 					} catch (IOException e) {
 						e.printStackTrace();
 					}
