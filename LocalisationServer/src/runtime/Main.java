@@ -10,6 +10,7 @@ import networking.TCPServer;
 import objects.Circle;
 import objects.Monitor;
 import objects.Shape;
+import shaders.ShapeShader;
 import utils.Maths;
 
 
@@ -56,14 +57,19 @@ public class Main {
 		Circle c1 = new Circle(new Monitor("2F:B2:67:90:47:56",new Vector2f(0,0)),"2F:B4:65:90:47:58",0.5f,new Vector2f(0,0));
 		c1.constructCircle(100);
 		
+		ShapeShader shader = new ShapeShader();
+		
 		// Graphics loop - refresh whilst window is running
 		while(!Window.isClosed())
 		{	
 			Window.clear();
 			Render.prepare(); // Clear window
-			
+			shader.start();
 			// Use renderer to draw a circle
-			Render.drawCircle(c1.getShape());
+			// True = Fill circle
+			// False = Hollow circle
+			Render.drawCircle(c1.getShape(), false);
+			shader.stop();
 			Window.update();
 		}
 		

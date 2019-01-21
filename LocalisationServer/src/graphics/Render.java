@@ -44,11 +44,18 @@ public class Render {
 	 * Provide better options for the drawing method.
 	 * glDrawArrays() method used instead as indices are not required
 	 */
-	public static void drawCircle(Shape shape)
+	public static void drawCircle(Shape shape, boolean fill)
 	{
 		GL30.glBindVertexArray(shape.getVertexArrayObjID());
 		GL20.glEnableVertexAttribArray(0);
-		GL11.glDrawArrays(GL11.GL_LINE_LOOP, 0, shape.getVertexCount());
+		if(fill)
+		{
+			GL11.glDrawArrays(GL11.GL_TRIANGLE_FAN, 0, shape.getVertexCount());
+		}
+		else
+		{
+			GL11.glDrawArrays(GL11.GL_LINE_LOOP, 0, shape.getVertexCount());
+		}
 		GL20.glDisableVertexAttribArray(0);
 		GL30.glBindVertexArray(0);
 	}
