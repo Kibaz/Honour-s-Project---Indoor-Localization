@@ -55,19 +55,83 @@ public class Maths {
 	 */
 	public static Vector2f findPointOfIntersection(Circle c1, Circle c2, Circle c3)
 	{
-		Vector2f pointOfIntersection = new Vector2f(0,0);
+		Vector2f pointOfIntersection = null; // Store common point of intersection
 		
+		// Find points of intersection between Circle 1 and 2
+		Vector2f[] pointsOfIntersection1 = pointsOfIntersection(c1,c2);
+		
+		// Find points of intersection between Circle 1 and 3
+		Vector2f[] pointsOfIntersection2 = pointsOfIntersection(c1,c3);
+		
+		// Find a common point of intersection
+		for(int i = 0; i < pointsOfIntersection1.length; i++)
+		{
+			for(int j = 0; j < pointsOfIntersection2.length; j++)
+			{
+				/*
+				 * If a point in first array matches point in second array
+				 * Then this must be a common point of intersection
+				 * Therefore all 3 circles intersect at same point
+				 */
+				if(checkPointsEqual(pointsOfIntersection1[i],pointsOfIntersection2[j])) // Points are equal
+				{	
+					// Store common point
+					pointOfIntersection = pointsOfIntersection1[i];
+				}
+			}
+		}
+		
+		System.out.println(pointOfIntersection);
+		
+		/*
+		 * If a common point of intersection is not found
+		 * This method will return null
+		 * Therefore a check must be carried out whether
+		 * This method returns null or a valid point
+		 */
 		
 		return pointOfIntersection;
 	}
 	
 	private static Vector2f[] pointsOfIntersection(Circle c1, Circle c2)
-	{
-		float x; // X coordinate of intersection point
-		float y; // Y coordinate of intersection point
-		// Get the squared values of both radiuses
+	{	
+		// Subtract centres to get distance between centres
+		Vector2f distanceBetweenCentres = Vector2f.sub(c1.getCentre(), c2.getCentre(), null);
+		float distance = (float) Math.sqrt(distanceBetweenCentres.x * distanceBetweenCentres.x + 
+				distanceBetweenCentres.y * distanceBetweenCentres.y);
 		
-		
+		// Determine number of solutions
+		if(distance > c1.getRadius() + c2.getRadius())
+		{
+			// No solutions as the circles are too far apart to intersect
+			return new Vector2f[0];
+		}
+		else if(distance < Math.abs(c1.getRadius() - c2.getRadius()))
+		{
+			// No solutions because circles exist inside one another
+			return new Vector2f[0];
+		}
+		else if((distance == 0) && (c1.getRadius() == c2.getRadius()))
+		{
+			// No solution because the circles coincide (Are equal)
+			return new Vector2f[0];
+		}
+		else
+		{
+			float a = ((c1.getRadius() * c1.getRadius()) - (c2.getRadius() * c2.getRadius())) / (2 * distance);
+			float h = (float) Math.sqrt(c1.getRadius() * c1.getRadius() - a*a);
+			
+			// Find the point at the right angles to each triangle drawn at intersection of the circles
+			Vector2f pointAtRightAngle = new Vector2f(c1.getCentre().x + a * (c2.getCentre().x - c1.getCentre().x)/distance,
+													c1.getCentre().y + a * (c2.getCentre().y - c2.getCentre().y)/distance);
+			
+			Vector2f intersection1 = new Vector2f(pointAtRightAngle.x + h * (c2.getCentre().y - c1.getCentre().y)/distance,
+												pointAtRightAngle.y - h * (c2.getCentre().x - c1.getCentre().x)/distance);
+			Vector2f intersection2 = new Vector2f(pointAtRightAngle.x - h * (c2.getCentre().y - c1.getCentre().y)/distance,
+					pointAtRightAngle.y + h * (c2.getCentre().x - c1.getCentre().x)/distance);
+			
+			return new Vector2f[] {intersection1, intersection2};
+		}
 		
 	}
 	
