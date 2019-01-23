@@ -2,6 +2,7 @@ package objects;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 import org.lwjgl.util.vector.Vector2f;
 
@@ -12,13 +13,13 @@ public class Monitor {
 	private Vector2f location; // X and Y coordinates of the monitor
 	
 	// Store device data detected by this monitor
-	private List<Device> devices;
+	private CopyOnWriteArrayList<Device> devices;
 	
 	public Monitor(String macAddress, Vector2f location)
 	{
 		this.macAddress = macAddress;
 		this.location = location;
-		devices = new ArrayList<>();
+		devices = new CopyOnWriteArrayList<>();
 	}
 
 	public String getMacAddress() {
@@ -39,6 +40,19 @@ public class Monitor {
 
 	public List<Device> getDevices() {
 		return devices;
+	}
+	
+	public Device getDeviceIfExists(String deviceMac)
+	{
+		for(Device d: devices)
+		{
+			if(d.getMacAddress().equals(deviceMac))
+			{
+				return d;
+			}
+		}
+		
+		return null;
 	}
 	
 	

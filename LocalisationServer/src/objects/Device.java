@@ -1,6 +1,8 @@
 package objects;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.lwjgl.util.vector.Vector2f;
@@ -9,25 +11,61 @@ public class Device {
 	
 	private String macAddress; // MAC address associated with the device
 	private Vector2f location; // Location of the device relative to fixed locations of monitors
-	private Map<Long,Float> signalData; // Store time stamps and RSSI values (signal strength)
+	private float signalStrength; // Current signal strength
+	private float timeStamp; // Current time stamp
 	
-	public Device(String macAddress, Vector2f location)
+	private List<Float> signalData; // Retain a list of signal strengths detected
+	
+	public Device(String macAddress, float signalStrength, float timeStamp)
 	{
 		this.macAddress = macAddress;
-		this.location = location;
-		signalData = new HashMap<>();
+		this.signalStrength = signalStrength;
+		this.timeStamp = timeStamp;
+		signalData  = new ArrayList<>();
 	}
+	
+	
+
+	public float getSignalStrength() {
+		return signalStrength;
+	}
+
+
+
+	public void setSignalStrength(float signalStrength) {
+		this.signalStrength = signalStrength;
+	}
+
+
+
+	public float getTimeStamp() {
+		return timeStamp;
+	}
+
+
+
+	public void setTimeStamp(float timeStamp) {
+		this.timeStamp = timeStamp;
+	}
+
+
 
 	public String getMacAddress() {
 		return macAddress;
+	}
+	
+	public List<Float> getSignalData()
+	{
+		return signalData;
 	}
 
 	public Vector2f getLocation() {
 		return location;
 	}
-
-	public Map<Long, Float> getSignalData() {
-		return signalData;
+	
+	public void setLocation(Vector2f location)
+	{
+		this.location = location;
 	}
 	
 	

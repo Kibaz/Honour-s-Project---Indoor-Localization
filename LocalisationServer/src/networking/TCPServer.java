@@ -8,6 +8,10 @@ import java.net.Socket;
 import java.net.SocketException;
 import java.util.Date;
 
+import dataHandling.DataManager;
+import objects.Device;
+import objects.Monitor;
+
 public class TCPServer {
 	
 	private ServerSocket socket;
@@ -27,7 +31,7 @@ public class TCPServer {
 		listening = false;
 	}
 	
-	public void start()
+	public void start(DataManager dataManager)
 	{
 		listening = true;
 		serverThread = new Thread(new Runnable() {
@@ -46,7 +50,7 @@ public class TCPServer {
 						String message = ""; // Store current message
 						while((message = reader.readLine()) != null) // Read each message in input stream
 						{
-							processPacket(message);
+							processPacket(dataManager,message);
 						}
 					} catch (SocketException e)
 					{
@@ -82,7 +86,7 @@ public class TCPServer {
 		}
 	}
 	
-	private void processPacket(String msg)
+	private void processPacket(DataManager dataManager,String msg)
 	{
 		/*
 		 * Verify message header
@@ -97,7 +101,7 @@ public class TCPServer {
 			// Ignore index 0 - this is the message header
 			String device_MAC = data[1]; // Receiver's MAC address
 			String monitor_MAC = data[2]; // Transmitter/APs MAC address
-			double signal_str = Double.parseDouble(data[3]); // The signal strength received
+			float signal_str = Float.parseFloat(data[3]); // The signal strength received
 			/*
 			 * Extracting the time stamp from the message
 			 * Original method sent from Python code 
@@ -108,6 +112,21 @@ public class TCPServer {
 			 */
 			Float tempTimeStamp = new Float(data[4]);
 			long timeStamp = tempTimeStamp.longValue();
+				
+			Monitor monitor = dataManager.getMonitorByAddress(monitor_MAC);
+			Device device = monitor.getDeviceIfExists(device_MAC);
+			if(device != null)
+			{
+				device.setSignalStrength(signal_str);
+				device.getSignalData().add(signal_str);
+				device.setTimeStamp(timeStamp);
+			}
+			else
+			{
+				device = new Device(device_MAC,signal_str, timeStamp);
+				device.getSignalData().add(signal_str);
+				monitor.getDevices().add(device);
+			}
 			
 		}
 	}

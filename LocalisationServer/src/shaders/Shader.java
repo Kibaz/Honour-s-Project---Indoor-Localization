@@ -4,15 +4,21 @@ import java.io.BufferedReader;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.nio.FloatBuffer;
 
+import org.lwjgl.BufferUtils;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL20;
+import org.lwjgl.util.vector.Matrix4f;
+import org.lwjgl.util.vector.Vector3f;
 
 public abstract class Shader {
 	
 	private int program; // Reference to the shader program for OpenGL
 	private int vertexShaderID; // Determines how the model should be shaded in relation to vertex positions
 	private int fragmentShaderID; // Determines how the colours will be manipulated
+	
+	private static FloatBuffer matrixBuffer = BufferUtils.createFloatBuffer(16);
 	
 	public Shader(String vertexShader, String fragmentShader)
 	{
@@ -88,6 +94,23 @@ public abstract class Shader {
 	protected int getUniformLocation(String uniformName)
 	{
 		return GL20.glGetUniformLocation(program, uniformName);
+	}
+	
+	protected void loadMatrix(int location, Matrix4f matrix)
+	{
+		matrix.store(matrixBuffer);
+		matrixBuffer.flip();
+		GL20.glUniformMatrix4fv(location, false, matrixBuffer);
+	}
+	
+	protected void loadVector(int location, Vector3f vector)
+	{
+		GL20.glUniform3f(location, vector.x, vector.y, vector.z);
+	}
+	
+	protected void loadFloat(int location, float value)
+	{
+		GL20.glUniform1f(location, value);
 	}
 
 }

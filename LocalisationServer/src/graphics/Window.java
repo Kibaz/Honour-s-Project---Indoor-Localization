@@ -33,6 +33,9 @@ public class Window {
 	// Fields
 	private static long windowID; // Store a reference value for the GLFW window
 	
+	private static double lastFrameInterval;
+	private static float delta;
+	
 	
 	/*
 	 * Initialising GLFW
@@ -91,6 +94,8 @@ public class Window {
 			GLFW.glfwSwapInterval(1); // Clear window every frame
 			
 			GLFW.glfwShowWindow(windowID); // Spawn window
+			
+			lastFrameInterval = GLFW.glfwGetTime();
 		}
 	}
 	
@@ -110,6 +115,15 @@ public class Window {
 	{
 		GLFW.glfwSwapBuffers(windowID);
 		GLFW.glfwPollEvents();
+		
+		double currentFrameTime = GLFW.glfwGetTime();
+		delta = (float) (currentFrameTime - lastFrameInterval);
+		lastFrameInterval = currentFrameTime;
+	}
+	
+	public static float getDeltaTime()
+	{
+		return delta;
 	}
 	
 	/*
