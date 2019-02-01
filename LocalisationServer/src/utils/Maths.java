@@ -16,6 +16,8 @@ public class Maths {
 	
 	private static final double WAVELENGTH = 0.125;
 	
+	private static final float ERROR_MARGIN = 0.01f; // Error margin for trilateration localisation
+	
 	
 	/*
 	 * Calculate the distance using RSSI (Received Signal Strength Indicator)
@@ -72,7 +74,9 @@ public class Maths {
 			float dx = pointsOfIntersection[i].x - c3.getCentre().x;
 			float dy = pointsOfIntersection[i].y - c3.getCentre().y;
 			float distance = (float) Math.sqrt((dx * dx) + (dy * dy));
-			if(Math.abs(distance) == c3.getRadius())
+			
+			if(Math.abs(distance) > c3.getRadius() - ERROR_MARGIN && 
+					Math.abs(distance) < c3.getRadius() + ERROR_MARGIN)
 			{
 				return pointsOfIntersection[i];
 			}

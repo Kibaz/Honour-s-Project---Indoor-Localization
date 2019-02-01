@@ -24,9 +24,9 @@ public class DataManager {
 	public DataManager()
 	{
 		// Initialise monitors with known MAC Addresses and Fixed Locations
-		firstMonitor = new Monitor("b8:27:eb:35:2b:60", new Vector2f(-1f,0f));
-		secondMonitor = new Monitor("b8:27:eb:f7:b8:27", new Vector2f(0,1));
-		thirdMonitor = new Monitor("b8:27:eb:01:d1:9d", new Vector2f(1f,0f));
+		firstMonitor = new Monitor("b8:27:eb:35:2b:60", new Vector2f(-1f,0f)); // -1f, 0f
+		secondMonitor = new Monitor("b8:27:eb:f7:b8:27", new Vector2f(0f,1f)); // 0,1
+		thirdMonitor = new Monitor("b8:27:eb:01:d1:9d", new Vector2f(1f,0f)); // 1f, 0f
 	}
 	
 	// Retrieve the monitor by associated MAC Address

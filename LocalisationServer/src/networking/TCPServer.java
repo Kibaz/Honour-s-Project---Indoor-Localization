@@ -6,9 +6,12 @@ import java.io.InputStreamReader;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 import dataHandling.DataManager;
+import dataHandling.DeviceData;
 import objects.Device;
 import objects.Monitor;
 
@@ -112,19 +115,16 @@ public class TCPServer {
 			 */
 			Float tempTimeStamp = new Float(data[4]);
 			long timeStamp = tempTimeStamp.longValue();
-				
 			Monitor monitor = dataManager.getMonitorByAddress(monitor_MAC);
 			Device device = monitor.getDeviceIfExists(device_MAC);
 			if(device != null)
 			{
-				device.setSignalStrength(signal_str);
-				device.getSignalData().add(signal_str);
-				device.setTimeStamp(timeStamp);
+				device.getData().add(new DeviceData(timeStamp,signal_str));
 			}
 			else
 			{
-				device = new Device(device_MAC,signal_str, timeStamp);
-				device.getSignalData().add(signal_str);
+				device = new Device(device_MAC);
+				device.getData().add(new DeviceData(timeStamp,signal_str));
 				monitor.getDevices().add(device);
 			}
 			

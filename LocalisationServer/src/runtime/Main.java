@@ -1,11 +1,13 @@
 package runtime;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 
 import org.lwjgl.util.vector.Vector2f;
 
 import dataHandling.DataManager;
+import dataHandling.DeviceData;
 import graphics.Loader;
 import graphics.Render;
 import graphics.Window;
@@ -22,6 +24,7 @@ import utils.Maths;
 public class Main {
 	
 	private static float opacityTimer = 0; 
+	private static float opacity = 0;
 
 	public static void main(String[] args) {
 		/*
@@ -66,6 +69,9 @@ public class Main {
 		
 		Shape baseCircle = Circle.constructCircle(0.05f, 100);
 		
+		List<Device> devicePointers = new ArrayList<>();
+		List<Circle> locators = new ArrayList<>();
+		
 		List<Circle> monitors = new ArrayList<>();
 		/*
 		 * Initialise a circle to be drawn for each monitor
@@ -92,10 +98,20 @@ public class Main {
 			// False = Hollow circle
 			alterOpacityTimer();
 			
-			handleData(dataManager,baseCircle);
+			handleData(dataManager,baseCircle,devicePointers,locators);
 			for(Circle circle: monitors)
 			{
 				Render.drawCircle(circle);
+			}
+			
+			for(Device device: devicePointers)
+			{
+				Render.drawCircle(device.getPointer());
+			}
+			
+			for(Circle cirlce: locators)
+			{
+				Render.drawCircle(cirlce);
 			}
 			
 			Window.update();
@@ -112,66 +128,96 @@ public class Main {
 	private static void alterOpacityTimer()
 	{
 		opacityTimer += Window.getDeltaTime();
-		
-		if(opacityTimer > 1.0f)
-		{
-			opacityTimer %= 1.0f;
-		}
+		opacity = (float) Math.abs(Math.sin(opacityTimer));
 	}
 	
-	private static void handleData(DataManager dataManager, Shape baseCircle)
+	private static void handleData(DataManager dataManager, Shape baseCircle, List<Device> devicePointers, List<Circle> locators)
 	{
+		// Loop through every device registered with the first monitor
 		for(Device device: dataManager.getFirstMonitor().getDevices())
 		{
 			// Check if the other monitors have detected the same device
 			Device checkDevice1 = dataManager.getSecondMonitor().getDeviceIfExists(device.getMacAddress());
-			Device checkDevice2 = dataManager.getSecondMonitor().getDeviceIfExists(device.getMacAddress());
+			Device checkDevice2 = dataManager.getThirdMonitor().getDeviceIfExists(device.getMacAddress());
+			
+			// If the same device has been detected by the other monitors
 			if(checkDevice1 != null && checkDevice2 != null)
 			{
-				for(int i = 0; i < device.getSignalData().size(); i++)
+				if(device.getMacAddress().equals("b0:47:bf:92:74:97"))
 				{
-					float first = device.getSignalData().get(i);
-					for(int j = 0; j < checkDevice1.getSignalData().size(); j++)
+					// Get iterator for each device data list in each device instance
+					Iterator<DeviceData> iterator1 = device.getData().iterator();
+					Iterator<DeviceData> iterator2 = checkDevice1.getData().iterator();
+					Iterator<DeviceData> iterator3 = checkDevice2.getData().iterator();
+					
+					List<Circle> monitor1Locators = new ArrayList<>();
+					List<Circle> monitor2Locators = new ArrayList<>();
+					List<Circle> monitor3Locators = new ArrayList<>();
+					
+					while(iterator1.hasNext())
 					{
-						float second = checkDevice1.getSignalData().get(j);
-						for(int k = 0; k < checkDevice2.getSignalData().size(); k++)
+						DeviceData data = iterator1.next();
+						Circle locator = new Circle(dataManager.getFirstMonitor(),device.getMacAddress(),
+								data.getDistanceFromMonitor(),dataManager.getFirstMonitor().getLocation(),baseCircle,false);
+						locator.setOpacity(0.4f);
+						monitor1Locators.add(locator);
+					}
+					
+					while(iterator2.hasNext())
+					{
+						DeviceData data = iterator2.next();
+						Circle locator = new Circle(dataManager.getSecondMonitor(),device.getMacAddress(),
+								data.getDistanceFromMonitor(),dataManager.getSecondMonitor().getLocation(),baseCircle,false);
+						locator.setOpacity(0.4f);
+						monitor2Locators.add(locator);
+					}
+					
+					while(iterator3.hasNext())
+					{
+						DeviceData data = iterator3.next();
+						Circle locator = new Circle(dataManager.getThirdMonitor(),device.getMacAddress(),
+								data.getDistanceFromMonitor(),dataManager.getThirdMonitor().getLocation(),baseCircle,false);
+						locator.setOpacity(0.4f);
+						monitor3Locators.add(locator);
+					}
+					
+					locators.addAll(monitor1Locators);
+					locators.addAll(monitor2Locators);
+					locators.addAll(monitor3Locators);
+					
+					/*
+					 * Check for intersections between
+					 * the locators generated for each
+					 * monitor. Render the locators
+					 */
+					for(Circle c1: monitor1Locators)
+					{	
+						for(Circle c2: monitor2Locators)
 						{
-							if(device.getMacAddress().equals("b0:47:bf:92:74:97"))
+							for(Circle c3: monitor3Locators)
 							{
-								float third = checkDevice2.getSignalData().get(k);
-								float distMonitor1 = (float) Math.floor(Maths.calculateDistanceFromRSSI(first));
-								float distMonitor2 = (float) Math.floor(Maths.calculateDistanceFromRSSI(second));
-								float distMonitor3 = (float) Math.floor(Maths.calculateDistanceFromRSSI(third));
-								
-								Circle locator1 = new Circle(dataManager.getFirstMonitor(),device.getMacAddress(),distMonitor1,
-										dataManager.getFirstMonitor().getLocation(),baseCircle,false);
-								Circle locator2 = new Circle(dataManager.getSecondMonitor(),device.getMacAddress(),distMonitor2,
-										dataManager.getSecondMonitor().getLocation(),baseCircle,false);
-								Circle locator3 = new Circle(dataManager.getThirdMonitor(),device.getMacAddress(),distMonitor3,
-										dataManager.getThirdMonitor().getLocation(),baseCircle,false);
-								Render.drawCircle(locator1);
-								Render.drawCircle(locator2);
-								Render.drawCircle(locator3);
-								
-								Vector2f pointOfIntersection = Maths.findPointOfIntersection(locator1, locator2, locator3);
-								// If a point of intersection is found across all 3 locators
+								Vector2f pointOfIntersection = Maths.findPointOfIntersection(c1, c2, c3);
 								if(pointOfIntersection != null)
 								{
-									// Draw a device
-									Circle locatedDevice = new Circle(dataManager.getFirstMonitor(),device.getMacAddress(),0.05f,
-											pointOfIntersection,baseCircle,true);
-									locatedDevice.setColour(0, 1, 0); // Set to green
-									locatedDevice.setOpacity(opacityTimer);
-									Render.drawCircle(locatedDevice);
+									System.out.println(pointOfIntersection);
+									Circle deviceCircle = new Circle(dataManager.getFirstMonitor(),device.getMacAddress(),
+											0.05f,pointOfIntersection,baseCircle,true);
+									deviceCircle.setColour(0, 1, 0); // Set discovered device colour to green
+									device.setPointer(deviceCircle); // Update devices pointer
+									// If the device has not already been stored
+									if(!devicePointers.contains(device))
+									{
+										devicePointers.add(device);
+									}
+									
 								}
 							}
-
 						}
 					}
 				}
 
-				
 			}
+
 		}
 	}
 

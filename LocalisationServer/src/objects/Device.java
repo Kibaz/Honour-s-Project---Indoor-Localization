@@ -4,59 +4,28 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 import org.lwjgl.util.vector.Vector2f;
+
+import dataHandling.DeviceData;
 
 public class Device {
 	
 	private String macAddress; // MAC address associated with the device
 	private Vector2f location; // Location of the device relative to fixed locations of monitors
-	private float signalStrength; // Current signal strength
-	private float timeStamp; // Current time stamp
 	
-	private List<Float> signalData; // Retain a list of signal strengths detected
+	// Each device will store a list of device data captured for the corresponding device
+	private CopyOnWriteArrayList<DeviceData> data;
 	
-	public Device(String macAddress, float signalStrength, float timeStamp)
+	private Circle pointer; // Pointer for visualising devices location
+	
+	// Constructor
+	public Device(String macAddress)
 	{
 		this.macAddress = macAddress;
-		this.signalStrength = signalStrength;
-		this.timeStamp = timeStamp;
-		signalData  = new ArrayList<>();
-	}
-	
-	
-
-	public float getSignalStrength() {
-		return signalStrength;
-	}
-
-
-
-	public void setSignalStrength(float signalStrength) {
-		this.signalStrength = signalStrength;
-	}
-
-
-
-	public float getTimeStamp() {
-		return timeStamp;
-	}
-
-
-
-	public void setTimeStamp(float timeStamp) {
-		this.timeStamp = timeStamp;
-	}
-
-
-
-	public String getMacAddress() {
-		return macAddress;
-	}
-	
-	public List<Float> getSignalData()
-	{
-		return signalData;
+		data = new CopyOnWriteArrayList<>();
 	}
 
 	public Vector2f getLocation() {
@@ -67,6 +36,43 @@ public class Device {
 	{
 		this.location = location;
 	}
+
+	public String getMacAddress() {
+		return macAddress;
+	}
+
+	public CopyOnWriteArrayList<DeviceData> getData() {
+		return data;
+	}
+
+	public Circle getPointer() {
+		return pointer;
+	}
+
+	public void setPointer(Circle pointer) {
+		this.pointer = pointer;
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		Device other = (Device) obj;
+		if (macAddress == null) {
+			if (other.macAddress != null)
+				return false;
+		} else if (!macAddress.equals(other.macAddress))
+			return false;
+		return true;
+	}
+	
+	
+	
+	
 	
 	
 	
