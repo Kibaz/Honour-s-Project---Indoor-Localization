@@ -114,7 +114,7 @@ public class TCPServer {
 			 * in milliseconds
 			 */
 			Float tempTimeStamp = new Float(data[4]);
-			long timeStamp = tempTimeStamp.longValue();
+			long timeStamp = System.currentTimeMillis();
 			Monitor monitor = dataManager.getMonitorByAddress(monitor_MAC);
 			Device device = monitor.getDeviceIfExists(device_MAC);
 			if(device != null)

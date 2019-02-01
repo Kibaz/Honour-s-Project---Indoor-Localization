@@ -21,6 +21,11 @@ public class Device {
 	
 	private Circle pointer; // Pointer for visualising devices location
 	
+	// Hold reference to locators
+	private Circle locator1; 
+	private Circle locator2;
+	private Circle locator3;
+	
 	// Constructor
 	public Device(String macAddress)
 	{
@@ -51,6 +56,30 @@ public class Device {
 
 	public void setPointer(Circle pointer) {
 		this.pointer = pointer;
+	}
+
+	public Circle getLocator1() {
+		return locator1;
+	}
+
+	public void setLocator1(Circle locator1) {
+		this.locator1 = locator1;
+	}
+
+	public Circle getLocator2() {
+		return locator2;
+	}
+
+	public void setLocator2(Circle locator2) {
+		this.locator2 = locator2;
+	}
+
+	public Circle getLocator3() {
+		return locator3;
+	}
+
+	public void setLocator3(Circle locator3) {
+		this.locator3 = locator3;
 	}
 
 	@Override

@@ -1,8 +1,10 @@
 package dataHandling;
 
+import java.util.Comparator;
+
 import utils.Maths;
 
-public class DeviceData {
+public class DeviceData implements Comparator<DeviceData> {
 	
 	/*
 	 * Class to store all relevant device data
@@ -33,6 +35,24 @@ public class DeviceData {
 
 	public float getRssi() {
 		return rssi;
+	}
+
+	@Override
+	public int compare(DeviceData data1, DeviceData data2) {
+		if(data1.getTimeStamp() == data2.getTimeStamp())
+		{
+			if(data1.getRssi() == data2.getRssi())
+			{
+				return 0;
+			}
+		}
+		
+		if(data1.getTimeStamp() < data2.getTimeStamp())
+		{
+			return -1;
+		}
+		
+		return 1;
 	}
 	
 	
