@@ -13,7 +13,8 @@ public class Circle {
 	// Fields
 	private Monitor monitor; // Monitor used as reference point
 	private String deviceMac; // MAC address of the device the circle refers to
-	private float radius; // Radius of the circle - equal to the distance from the monitor to the detected device
+	private float radius; // Current radius of the circle (vary over time if animated)
+	private float maxRadius; // Radius of the circle - equal to the distance from the monitor to the detected device
 	private Vector2f centre; // Location of the monitoring device i.e. Raspberry PIs
 	
 	private Vector3f colour;
@@ -28,23 +29,17 @@ public class Circle {
 	{
 		this.monitor = monitor;
 		this.radius = radius;
+		this.maxRadius = radius;
 		this.centre = centre;
 		this.shape = shape;
 		this.fill = fill;
 		colour = new Vector3f(0,0,0); // Default black
 	}
 	
-	public void increasePosition(float dx, float dy)
-	{
-		this.centre.x += dx;
-		this.centre.y += dy;
-	}
-	
 	// Configuring circle vertex list
 	public static Shape constructCircle(float radius, int segments)
 	{
 		List<Float> verts = new ArrayList<>();
-		List<Integer> indexList = new ArrayList<>();
 		
 		float increment = (float) (2.0f * Math.PI / segments);
 		for(float angle = 0.0f; angle <= 2.0f * Math.PI; angle+= increment)
@@ -73,6 +68,16 @@ public class Circle {
 
 	public float getRadius() {
 		return radius;
+	}
+	
+	public float getMaxRadius()
+	{
+		return maxRadius;
+	}
+	
+	public void setRadius(float radius)
+	{
+		this.radius = radius;
 	}
 
 	public Vector2f getCentre()
@@ -110,6 +115,25 @@ public class Circle {
 	public boolean isFilled()
 	{
 		return fill;
+	}
+	
+	/*
+	 * For animating a circle
+	 */
+	public void increaseRadius(float dr)
+	{
+		this.radius += dr;
+	}
+	
+	public void increaseOpacity(float dOpac)
+	{
+		this.opacity += dOpac;
+	}
+	
+	public void increasePosition(float dx, float dy)
+	{
+		this.centre.x += dx;
+		this.centre.y += dy;
 	}
 	
 	

@@ -126,6 +126,16 @@ public class Window {
 		return delta;
 	}
 	
+	public static int getWidth()
+	{
+		return WIDTH;
+	}
+	
+	public static int getHeight()
+	{
+		return HEIGHT;
+	}
+	
 	/*
 	 * Destroy the window when the process is ended
 	 * Ensure the GLFW is terminated

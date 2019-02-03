@@ -1,13 +1,20 @@
 package runtime;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
 import org.lwjgl.util.vector.Vector2f;
+import org.lwjgl.util.vector.Vector3f;
 
+import animation.Animator;
 import dataHandling.DataManager;
 import dataHandling.DeviceData;
+import fontHandling.FontStyle;
+import fontHandling.Fonts;
+import fontHandling.TextHandler;
+import fontHandling.TextModel;
 import graphics.Loader;
 import graphics.Render;
 import graphics.Window;
@@ -38,10 +45,6 @@ public class Main {
 		 * Between both protocols - coded a server for each
 		 */
 		
-		/*
-		 * Start the server's clock
-		 */
-		
 		// Initialise Data Manager for handling incoming data
 		DataManager dataManager = new DataManager();
 				
@@ -56,6 +59,20 @@ public class Main {
 		
 		// Initialise window
 		Window.init();
+		
+		// Initialise text handler for rendering text
+		TextHandler.init();
+		TextModel addressTag = new TextModel("bc:45:cd:77:6c:98",0.75f,Fonts.arial,new Vector2f(0,0),0.2f,true);
+		TextHandler.removeText(addressTag); // Remove text from renderer
+		
+		/*
+		 * Testing font/text rendering
+		 * Use test text as a test text model
+		 * Configure a font style using a font file
+		 */
+		//FontStyle font = new FontStyle(Loader.loadFontTexture("files/arial.png", 0),new File("files/arial.fnt"));
+		//TextModel testText = new TextModel("test",1,font,new Vector2f(0,0),1,false);
+		//testText.setColour(1, 1, 1);
 		
 		/*
 		 * Determining whether a common point of intersection
@@ -87,6 +104,14 @@ public class Main {
 		Circle monitor3 = new Circle(dataManager.getThirdMonitor(),"",0.05f,dataManager.getThirdMonitor().getLocation(),baseCircle,true);
 		monitor3.setColour(1, 0, 0);
 		
+		/*
+		 * Testing using the conversion method from regular device and monitor positional data
+		 * to the screen space positional data used by the font rendering system
+		 * 
+		 * Vector3f tagPos = Maths.covertCoordinates(new Vector3f(dataManager.getFirstMonitor().getLocation().x,
+				dataManager.getFirstMonitor().getLocation().y,0));
+		addressTag.setPosition(new Vector2f(tagPos.x,tagPos.y));*/
+		
 		monitors.add(monitor1);
 		monitors.add(monitor2);
 		monitors.add(monitor3);
@@ -101,26 +126,33 @@ public class Main {
 			// False = Hollow circle
 			alterOpacityTimer();
 			
-			handleData(dataManager,baseCircle,devicePointers);
-			for(Circle circle: monitors)
-			{
-				Render.drawCircle(circle);
-			}
+			handleData(dataManager,baseCircle,devicePointers,addressTag);
 			
+			// Carry out rendering
 			for(Device device: devicePointers)
 			{
+				Animator.update(device);
+				Animator.animateLocator(device.getLocator1());
+				Animator.animateLocator(device.getLocator2());
+				Animator.animateLocator(device.getLocator3());
 				Render.drawCircle(device.getPointer());
 				Render.drawCircle(device.getLocator1());
 				Render.drawCircle(device.getLocator2());
 				Render.drawCircle(device.getLocator3());
 			}
 			
+			for(Circle circle: monitors)
+			{
+				Render.drawCircle(circle);
+			}
+			TextHandler.render();
 			Window.update();
 		}
 		
 		// After window has been closed
 		Window.destroy(); // Terminate window and GLFW
 		Loader.clear(); // Clear all loaded data
+		TextHandler.clear();
 		tcpServer.stop(); // Stop the TCP server
 		// server.stop(); // Stop the UDP server
 		
@@ -132,7 +164,7 @@ public class Main {
 		opacity = (float) Math.abs(Math.sin(opacityTimer));
 	}
 	
-	private static void handleData(DataManager dataManager, Shape baseCircle, List<Device> devicePointers)
+	private static void handleData(DataManager dataManager, Shape baseCircle, List<Device> devicePointers, TextModel addressTag)
 	{
 		// Loop through every device registered with the first monitor
 		for(Device device: dataManager.getFirstMonitor().getDevices())
@@ -144,118 +176,139 @@ public class Main {
 			// If the same device has been detected by the other monitors
 			if(checkDevice1 != null && checkDevice2 != null)
 			{
-				if(device.getMacAddress().equals("b0:47:bf:92:74:97"))
+				// Get iterator for each device data list in each device instance
+				Iterator<DeviceData> iterator1 = device.getData().iterator();
+				Iterator<DeviceData> iterator2 = checkDevice1.getData().iterator();
+				Iterator<DeviceData> iterator3 = checkDevice2.getData().iterator();
+				
+				List<Circle> monitor1Locators = new ArrayList<>();
+				List<Circle> monitor2Locators = new ArrayList<>();
+				List<Circle> monitor3Locators = new ArrayList<>();
+				
+				List<DeviceData> dataToBeRemoved1 = new ArrayList<>();
+				List<DeviceData> dataToBeRemoved2 = new ArrayList<>();
+				List<DeviceData> dataToBeRemoved3 = new ArrayList<>();
+				
+				while(iterator1.hasNext())
 				{
-					// Get iterator for each device data list in each device instance
-					Iterator<DeviceData> iterator1 = device.getData().iterator();
-					Iterator<DeviceData> iterator2 = checkDevice1.getData().iterator();
-					Iterator<DeviceData> iterator3 = checkDevice2.getData().iterator();
+					DeviceData data = iterator1.next();
 					
-					List<Circle> monitor1Locators = new ArrayList<>();
-					List<Circle> monitor2Locators = new ArrayList<>();
-					List<Circle> monitor3Locators = new ArrayList<>();
-					
-					List<DeviceData> dataToBeRemoved1 = new ArrayList<>();
-					List<DeviceData> dataToBeRemoved2 = new ArrayList<>();
-					List<DeviceData> dataToBeRemoved3 = new ArrayList<>();
-					
-					while(iterator1.hasNext())
+					// Check redundancy of the data being handled
+					if(System.currentTimeMillis() - data.getTimeStamp() > 1000)
 					{
-						DeviceData data = iterator1.next();
-						
-						// Check redundancy of the data being handled
-						if(System.currentTimeMillis() - data.getTimeStamp() > 1000)
-						{
-							dataToBeRemoved1.add(data);
-						}
-						else
-						{
-							Circle locator = new Circle(dataManager.getFirstMonitor(),device.getMacAddress(),
-									data.getDistanceFromMonitor(),dataManager.getFirstMonitor().getLocation(),baseCircle,false);
-							locator.setOpacity(1f);
-							monitor1Locators.add(locator);
-						}
+						dataToBeRemoved1.add(data);
 					}
-					
-					while(iterator2.hasNext())
+					else
 					{
-						DeviceData data = iterator2.next();
-						
-						// Check redundancy of the data being handled
-						if(System.currentTimeMillis() - data.getTimeStamp() > 1000)
-						{
-							dataToBeRemoved2.add(data);
-						}
-						else
-						{
-							Circle locator = new Circle(dataManager.getSecondMonitor(),device.getMacAddress(),
-									data.getDistanceFromMonitor(),dataManager.getSecondMonitor().getLocation(),baseCircle,false);
-							locator.setOpacity(1f);
-							monitor2Locators.add(locator);
-						}
+						Circle locator = new Circle(dataManager.getFirstMonitor(),device.getMacAddress(),
+								data.getDistanceFromMonitor(),dataManager.getFirstMonitor().getLocation(),baseCircle,false);
+						locator.setOpacity(1f);
+						monitor1Locators.add(locator);
 					}
+				}
+				
+				while(iterator2.hasNext())
+				{
+					DeviceData data = iterator2.next();
 					
-					while(iterator3.hasNext())
+					// Check redundancy of the data being handled
+					if(System.currentTimeMillis() - data.getTimeStamp() > 1000)
 					{
-						DeviceData data = iterator3.next();
-						
-						// Check redundancy of the data being handled
-						if(System.currentTimeMillis() - data.getTimeStamp() > 1000)
-						{
-							dataToBeRemoved3.add(data);
-						}
-						else
-						{
-							Circle locator = new Circle(dataManager.getThirdMonitor(),device.getMacAddress(),
-									data.getDistanceFromMonitor(),dataManager.getThirdMonitor().getLocation(),baseCircle,false);
-							locator.setOpacity(1f);
-							monitor3Locators.add(locator);
-						}
+						dataToBeRemoved2.add(data);
 					}
+					else
+					{
+						Circle locator = new Circle(dataManager.getSecondMonitor(),device.getMacAddress(),
+								data.getDistanceFromMonitor(),dataManager.getSecondMonitor().getLocation(),baseCircle,false);
+						locator.setOpacity(1f);
+						monitor2Locators.add(locator);
+					}
+				}
+				
+				while(iterator3.hasNext())
+				{
+					DeviceData data = iterator3.next();
 					
-					// Remove redundant data
-					device.getData().removeAll(dataToBeRemoved1);
-					checkDevice1.getData().removeAll(dataToBeRemoved2);
-					checkDevice2.getData().removeAll(dataToBeRemoved3);
-					
-					
-					
-					/*
-					 * Check for intersections between
-					 * the locators generated for each
-					 * monitor. Render the locators
-					 */
-					for(Circle c1: monitor1Locators)
-					{	
-						for(Circle c2: monitor2Locators)
+					// Check redundancy of the data being handled
+					if(System.currentTimeMillis() - data.getTimeStamp() > 1000)
+					{
+						dataToBeRemoved3.add(data);
+					}
+					else
+					{
+						Circle locator = new Circle(dataManager.getThirdMonitor(),device.getMacAddress(),
+								data.getDistanceFromMonitor(),dataManager.getThirdMonitor().getLocation(),baseCircle,false);
+						locator.setOpacity(1f);
+						monitor3Locators.add(locator);
+					}
+				}
+				
+				// Remove redundant data
+				device.getData().removeAll(dataToBeRemoved1);
+				checkDevice1.getData().removeAll(dataToBeRemoved2);
+				checkDevice2.getData().removeAll(dataToBeRemoved3);
+				
+				
+				
+				/*
+				 * Check for intersections between
+				 * the locators generated for each
+				 * monitor. Render the locators
+				 */
+				for(Circle c1: monitor1Locators)
+				{	
+					for(Circle c2: monitor2Locators)
+					{
+						for(Circle c3: monitor3Locators)
 						{
-							for(Circle c3: monitor3Locators)
+							Vector2f pointOfIntersection = Maths.findPointOfIntersection(c1, c2, c3);
+							if(pointOfIntersection != null)
 							{
-								Vector2f pointOfIntersection = Maths.findPointOfIntersection(c1, c2, c3);
-								if(pointOfIntersection != null)
-								{
-									System.out.println(pointOfIntersection);
-									Circle deviceCircle = new Circle(dataManager.getFirstMonitor(),device.getMacAddress(),
-											0.05f,pointOfIntersection,baseCircle,true);
-									deviceCircle.setColour(0, 1, 0); // Set discovered device colour to green
-									device.setPointer(deviceCircle); // Update devices pointer
+								Circle deviceCircle = new Circle(dataManager.getFirstMonitor(),device.getMacAddress(),
+										0.05f,pointOfIntersection,baseCircle,true);
+								deviceCircle.setColour(0, 1, 0); // Set discovered device colour to green
+								device.setPointer(deviceCircle); // Update devices pointer
+								device.setLocation(pointOfIntersection);
+								// Render each locator on screen
+								device.setLocator1(c1);
+								device.setLocator2(c2);
+								device.setLocator3(c3);
+								// Set each locator at default radius of 0.05f - required for locator animation
+								device.getLocator1().setRadius(0.05f);
+								device.getLocator2().setRadius(0.05f);
+								device.getLocator3().setRadius(0.05f);
+								
+								if(device.getAddressTag() != null)
+								{	
+									// Determine position of the address tag
+									Vector3f tagPos = Maths.covertCoordinates(new Vector3f(device.getLocation().x,
+											device.getLocation().y, 0)); // Z values will be zero as positional data is 2 Dimensional
 									
-									// Render each locator on screen
-									device.setLocator1(c1);
-									device.setLocator2(c2);
-									device.setLocator3(c3);
+									// Modify the address tag's position
+									float offsetX = device.getAddressTag().getMaxLineSize() / 2f;
+									float offsetY = device.getPointer().getMaxRadius();
+									device.getAddressTag().setPosition(new Vector2f(tagPos.x - offsetX,tagPos.y - offsetY));
 									
-									// If the device has not already been stored
-									if(!devicePointers.contains(device))
-									{
-										devicePointers.add(device);
-									}
+									
 									
 								}
+								
+								// If the device has not already been stored
+								if(!devicePointers.contains(device))
+								{
+									devicePointers.add(device);
+									addressTag.setContent(device.getMacAddress());
+									addressTag.setColour(1, 1, 1);
+									device.setAddressTag(addressTag);
+									TextHandler.loadText(addressTag);
+								}
+
+								
 							}
 						}
 					}
 				}
+			
 
 			}
 

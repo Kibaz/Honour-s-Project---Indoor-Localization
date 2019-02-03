@@ -3,20 +3,21 @@ package utils;
 import org.lwjgl.util.vector.Matrix4f;
 import org.lwjgl.util.vector.Vector2f;
 import org.lwjgl.util.vector.Vector3f;
+import org.lwjgl.util.vector.Vector4f;
 
 import objects.Circle;
 
 public class Maths {
 	
 	// Constants acquired by experimentation and calibration
-	private static final double SIGNAL_STR_AT_1_METRE = -41;
+	private static final double SIGNAL_STR_AT_1_METRE = -43;
 	/* Range of environmental factor from 2-4 */
 	private static final double SIGNAL_DECAY = 4; // Signal Decay exponent
 	private static final double PATH_LOSS = 0;
 	
 	private static final double WAVELENGTH = 0.125;
 	
-	private static final float ERROR_MARGIN = 0.01f; // Error margin for trilateration localisation
+	private static final float ERROR_MARGIN = 0.025f; // Error margin for trilateration localisation
 	
 	
 	/*
@@ -155,6 +156,25 @@ public class Maths {
 		Matrix4f.rotate((float) Math.toRadians(rz), new Vector3f(0,0,1), matrix, matrix);
 		Matrix4f.scale(new Vector3f(scale,scale,scale), matrix, matrix);
 		return matrix;
+	}
+	
+	/*
+	 * Method for converting the positions of devices and monitors
+	 * To screen space positional data which can be used for positioning
+	 * text/font.
+	 */
+	
+	public static Vector3f covertCoordinates(Vector3f position)
+	{
+		Vector4f coordinates = new Vector4f(position.x, position.y, position.z,1f);
+		if(coordinates.w < 0)
+		{
+			return null;
+		}
+		
+		Vector3f screenCoordinates = new Vector3f(((coordinates.x/coordinates.w)+1)/2f, 
+				1 - (((coordinates.y / coordinates.w) + 1)/2f), coordinates.z);
+		return screenCoordinates;
 	}
 
 }

@@ -1,5 +1,6 @@
 package objects;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -8,8 +9,14 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import org.lwjgl.util.vector.Vector2f;
+import org.lwjgl.util.vector.Vector3f;
 
 import dataHandling.DeviceData;
+import fontHandling.FontStyle;
+import fontHandling.Fonts;
+import fontHandling.TextModel;
+import graphics.Loader;
+import graphics.Window;
 
 public class Device {
 	
@@ -25,6 +32,8 @@ public class Device {
 	private Circle locator1; 
 	private Circle locator2;
 	private Circle locator3;
+	
+	private TextModel addressTag;
 	
 	// Constructor
 	public Device(String macAddress)
@@ -80,6 +89,16 @@ public class Device {
 
 	public void setLocator3(Circle locator3) {
 		this.locator3 = locator3;
+	}
+	
+	public TextModel getAddressTag()
+	{
+		return addressTag;
+	}
+	
+	public void setAddressTag(TextModel model)
+	{
+		this.addressTag = model;
 	}
 
 	@Override
