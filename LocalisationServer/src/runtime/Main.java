@@ -11,6 +11,8 @@ import org.lwjgl.util.vector.Vector3f;
 import animation.Animator;
 import dataHandling.DataManager;
 import dataHandling.DeviceData;
+import filtering.KalmanFilter;
+import filtering.Matrix;
 import fontHandling.FontStyle;
 import fontHandling.Fonts;
 import fontHandling.TextHandler;
@@ -115,6 +117,36 @@ public class Main {
 		monitors.add(monitor1);
 		monitors.add(monitor2);
 		monitors.add(monitor3);
+		
+		/*
+		 * Testing Matrix class and internal functionality
+		 */
+		//Matrix matrix = new Matrix(2,2);
+		//matrix.setIdentity();
+		//matrix.print();
+		
+		/*
+		 * Testing matrix multiplication
+		Matrix matrix = new Matrix(2,3);
+		matrix.set(0, 0, 1);
+		matrix.set(0, 1, 2);
+		matrix.set(0, 2, 3);
+		matrix.set(1, 0, 4);
+		matrix.set(1, 1, 5);
+		matrix.set(1, 2, 6);
+		
+		Matrix matrix1 = new Matrix(3,2);
+		matrix1.set(0, 0, 7);
+		matrix1.set(0, 1, 8);
+		matrix1.set(1, 0, 9);
+		matrix1.set(1, 1, 10);
+		matrix1.set(2, 0, 11);
+		matrix1.set(2, 1, 12);
+		
+		Matrix result = matrix.multiply(matrix1);
+		result.print();
+		*/
+		
 		
 		// Graphics loop - refresh whilst window is running
 		while(!Window.isClosed())

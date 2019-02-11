@@ -56,8 +56,8 @@ public class Server {
 						// Received packet data in string format
 						String msg = new String(packet.getData(), 0, packet.getLength());
 						// Carry processing of packet information
-						System.out.println(msg + " packet lngth " + packet.getData());
-						processPacket(msg);
+						System.out.println(msg);
+						//processPacket(msg);
 					}
 				} catch (SocketException e) {
 					e.printStackTrace();
