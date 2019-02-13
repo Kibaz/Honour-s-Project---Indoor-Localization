@@ -13,6 +13,7 @@ import dataHandling.DataManager;
 import dataHandling.DeviceData;
 import filtering.KalmanFilter;
 import filtering.Matrix;
+import filtering.Vector;
 import fontHandling.FontStyle;
 import fontHandling.Fonts;
 import fontHandling.TextHandler;
@@ -123,7 +124,7 @@ public class Main {
 		 */
 		//Matrix matrix = new Matrix(2,2);
 		//matrix.setIdentity();
-		//matrix.print();
+		//System.out.println(matrix);
 		
 		/*
 		 * Testing matrix multiplication
@@ -144,7 +145,50 @@ public class Main {
 		matrix1.set(2, 1, 12);
 		
 		Matrix result = matrix.multiply(matrix1);
-		result.print();
+		System.out.println(result);
+		*/
+		
+		/*
+		 * Testing matrix transposition
+		Matrix matrix = new Matrix(3,3);
+		matrix.set(0, 0, 1);
+		matrix.set(0, 1, 2);
+		matrix.set(0, 2, 3);
+		matrix.set(1, 0, 4);
+		matrix.set(1, 1, 5);
+		matrix.set(1, 2, 6);
+		matrix.set(2, 0, 7);
+		matrix.set(2, 1, 8);
+		matrix.set(2, 2, 9);
+		System.out.println(matrix);
+		Matrix other = matrix.transpose();
+		System.out.println(other);
+		*/
+		
+		/*
+		 * Testing matrix - vector transformation
+		 */
+		/*
+		Vector vector = new Vector(3);
+		vector.set(0, 2); vector.set(1, 1); vector.set(2, 0);
+		
+		Matrix matrix = new Matrix(2,3);
+		matrix.set(0, 0, 1);
+		matrix.set(0, 1, -1);
+		matrix.set(0, 2, 2);
+		matrix.set(1, 0, 0);
+		matrix.set(1, 1, -3);
+		matrix.set(1, 2, 1);
+		
+		Vector test = vector.transform(matrix);
+		System.out.println(test);*/
+		
+		/*
+		 * Testing matrix inverse calculation
+		Matrix matrix = new Matrix(3,3);
+		matrix.setIdentity();
+		System.out.println(matrix);
+		Matrix inverse = matrix.inverse();
 		*/
 		
 		

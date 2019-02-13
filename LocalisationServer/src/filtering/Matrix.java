@@ -99,7 +99,34 @@ public class Matrix {
 			
 
 		}
-		else
+		else if(this.y_dim == other.x_dim)
+		{
+			/*
+			 * We can still multiply matrices as long as 
+			 * the number of columns in the first matrix matches the
+			 * number of rows in the second matrix
+			 */
+			
+			// The resultant matrix = numRows 1st matrix X numCols 2nd matrix
+			result = new Matrix(this.x_dim,other.y_dim);
+			// Being by looping through rows in resultant matrix
+			for(int i = 0; i < result.x_dim; i++)
+			{
+				for(int l = 0; l < result.y_dim; l++)
+				{
+					for(int j = 0; j < this.x_dim; j++)
+					{
+						for(int k = 0; k < this.y_dim; k++)
+						{
+							// Calculate multiplied value for this iteration
+							float val = this.matrix[i][k] * other.matrix[k][l];
+							result.matrix[i][l] += val;
+						}
+					}
+				}
+			}
+		}
+		else 
 		{
 			// Report error upon incompatible dimensions for multiplication
 			throw new RuntimeException("Error: Cannot multiply matrices with incompatible dimensions!");
@@ -131,21 +158,230 @@ public class Matrix {
 			}
 		}
 	}
+	
+	public void setDiag(float value)
+	{
+		// Set the values in diagonal (top-left to bottom right equal to specified value)
+		// Set all other values to 0
+		for(int i = 0; i < x_dim; i++)
+		{
+			for(int j = 0; j < y_dim; j++)
+			{
+				if(i == j)
+				{
+					matrix[i][j] = value;
+				}
+				else
+				{
+					matrix[i][j] = 0;
+				}
+				
+			}
+		}
+	}
+	
+	/*
+	 * The transpose of a matrix is a matrix
+	 * whose row values are the column values
+	 * of the original matrix and the column values
+	 * the row values of the original matrix
+	 * 
+	 * Swaps row and column values
+	 */
+	public Matrix transpose()
+	{
+		// Initialise new matrix with the dimensions of original matrix swapped
+		Matrix result = new Matrix(this.y_dim,this.x_dim);
+		
+		for(int i = 0; i < this.x_dim; i++)
+		{
+			for(int j = 0; j < this.y_dim; j++)
+			{
+				result.matrix[j][i] = this.matrix[i][j];
+			}
+		}
+
+		
+		return result;
+	}
+	
+	/*
+	 * Method to calculate the inverse of this matrix
+	 * The inverse is a matrix that when multiplied by
+	 * the original matrix will produce an identity matrix
+	 */
+	public Matrix inverse()
+	{
+		Matrix result = new Matrix(this.x_dim,this.y_dim);
+		
+		if(this.x_dim != this.y_dim)
+		{
+			throw new RuntimeException("Error: Cannot find the inverse of a matrix not in the form (n x n)");
+		}
+		
+		// Find determinant
+		float det = determinant(this.matrix,this.matrix.length);
+		if(det == 0)
+		{
+			System.out.println("No inverse can be found!");
+			return null;
+		}
+		
+		// Find adjoint
+		float[][] adj = new float[this.matrix.length][this.matrix.length];
+		adjoint(this.matrix,adj);
+		
+		// Find inverse using formula inverse(Matrix) = adj(Matrix) / det(Matrix)
+		for(int i = 0; i < this.x_dim; i++)
+		{
+			for(int j = 0; j < this.y_dim; j++)
+			{
+				result.matrix[i][j] = adj[i][j]/det;
+			}
+		}
+		
+		return result;
+	}
+	
+	private float determinant(float[][] matrix, int n)
+	{
+		float det = 0;
+		
+		if(n == 1)
+		{
+			return matrix[0][0];
+		}
+		
+		float[][] temp = new float[matrix.length][matrix.length];
+		
+		int sign = 1; // Start with positive sign
+		
+		for(int i = 0; i < matrix.length; i++)
+		{
+			// Get the cofactor
+			cofactor(matrix,temp,0,i,n);
+			det += sign * matrix[0][i] * determinant(temp, n-1);
+			
+			// terms to be added with alternative sign, thus switch sign
+			sign = -sign;
+		}
+		
+		
+		return det;
+	}
+	
+	private void cofactor(float[][] matrix,float[][] temp, int p, int q, int n)
+	{
+		int i = 0;
+		int j = 0;
+		
+		for(int row = 0; row < n; row++)
+		{
+			for(int col = 0; col < n; col++)
+			{
+				if(row != p && col != q)
+				{
+					temp[i][j++] = matrix[row][col];
+					
+					if(j == n - 1)
+					{
+						j = 0;
+						i++;
+					}
+				}
+			}
+		}
+	}
+	
+	private void adjoint(float[][] matrix, float[][] adj)
+	{
+		if(matrix.length == 1)
+		{
+			adj[0][0] = 1;
+			return;
+		}
+		
+		int sign = 1;
+		float temp[][] = new float[matrix.length][matrix.length];
+		
+		for(int i = 0; i < matrix.length; i++)
+		{
+			for(int j = 0; j < matrix.length; j++)
+			{
+				cofactor(matrix,temp,i,j,matrix.length);
+				
+				sign = ((i+j)%2==0) ? 1: -1;
+				
+				adj[j][i] = (sign) * (determinant(temp, matrix.length-1));
+			}
+		}
+		
+	}
+	
+	public Matrix add(Matrix other)
+	{
+		Matrix result = new Matrix(this.x_dim,this.y_dim);
+		
+		// Check whether matrices have the same dimensions and are thus compatible for addition
+		if(this.x_dim != other.x_dim || this.y_dim != other.y_dim)
+		{
+			throw new RuntimeException("Error: Matrices are not compatible for addition operation!");
+		}
+		
+		for(int i = 0; i < this.x_dim; i++)
+		{
+			for(int j = 0; j < this.y_dim; j++)
+			{
+				result.matrix[i][j] = this.matrix[i][j] + other.matrix[i][j];
+			}
+		}
+		
+		return result;
+	}
+	
+	public Matrix sub(Matrix other)
+	{
+		Matrix result = new Matrix(this.x_dim,this.y_dim);
+		
+		// Check whether matrices have the same dimensions and are thus compatible for subtraction
+		if(this.x_dim != other.x_dim || this.y_dim != other.y_dim)
+		{
+			throw new RuntimeException("Error: Matrices are not compatible for subtraction operation!");
+		}
+		
+		for(int i = 0; i < this.x_dim; i++)
+		{
+			for(int j = 0; j < this.y_dim; j++)
+			{
+				result.matrix[i][j] = this.matrix[i][j] - other.matrix[i][j];
+			}
+		}
+		
+		return result;
+	}
 
 	/*
 	 * Print the matrix to console in
 	 * matrix format
 	 */
-	public void print()
+	public String toString()
 	{
-		String output = ""; // Store output as a string
+		String output = "["; // Store output as a string
 		for(int i = 0; i < x_dim; i++)
 		{
 			for(int j = 0; j < y_dim; j++)
 			{
 				if(j == y_dim-1) // When reached end of row
 				{
-					output += matrix[i][j] + "\n"; // Append new line
+					if(i == x_dim -1)
+					{
+						output += matrix[i][j];
+					}
+					else
+					{
+						output += matrix[i][j] + "\n"; // Append new line
+					}
+					
 				}
 				else
 				{
@@ -153,9 +389,19 @@ public class Matrix {
 				}
 			}
 		}
-		// Output the output string to the console
-		// This should have been formatted to appear as a matrix
-		System.out.println(output);
+		
+		output += "]";
+		return output;
+	}
+	
+	public int getXDim()
+	{
+		return x_dim;
+	}
+	
+	public int getYDim()
+	{
+		return y_dim;
 	}
 
 }
