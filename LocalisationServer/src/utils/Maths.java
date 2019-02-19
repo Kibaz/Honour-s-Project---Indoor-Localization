@@ -12,7 +12,7 @@ public class Maths {
 	// Constants acquired by experimentation and calibration
 	private static final double SIGNAL_STR_AT_1_METRE = -43;
 	/* Range of environmental factor from 2-4 */
-	private static final double SIGNAL_DECAY = 4; // Signal Decay exponent
+	private static final double SIGNAL_DECAY = 2; // Signal Decay exponent
 	private static final double PATH_LOSS = 0;
 	
 	private static final double WAVELENGTH = 0.125;

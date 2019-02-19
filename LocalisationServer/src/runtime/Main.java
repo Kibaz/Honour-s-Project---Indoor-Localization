@@ -191,6 +191,44 @@ public class Main {
 		Matrix inverse = matrix.inverse();
 		*/
 		
+		// Initialise state variables and matrices required to instantiate Kalman Filter
+		Vector initState = new Vector(new float[] {0,0,0}); // Store 3 distance values as state variables - correspond to each monitor
+		
+		Matrix A = new Matrix(initState.getDimension(),initState.getDimension()); // Transformation matrix between states
+		A.setIdentity(); // Configure as an identity matrix as states will not be transitioned with RSSI values
+		
+		Matrix P = new Matrix(initState.getDimension(),initState.getDimension());
+		P.setIdentity(); // State covariance matrix - can be altered during filtering process - init as identity
+		
+		Matrix Q = new Matrix(initState.getDimension(), initState.getDimension());
+		Q.setIdentity(); // Noise associated with the measurements - can be calculated after measurements have been taken
+		
+		Matrix B = new Matrix(initState.getDimension(), initState.getDimension());
+		B.setIdentity(); // Control input effect matrix - redundant in RSSI filtering
+		
+		/*
+		 * The H Matrix is the measuring matrix
+		 * This tells the filter what is being measured
+		 * and how it relates to the state vector
+		 * 
+		 * Number of rows are equal to the number of variable types
+		 * i.e. distance, velocity etc...
+		 * 
+		 * Number of columns correspond to the number 
+		 * of values stored in the state vector
+		 */
+		Matrix H = new Matrix(1,initState.getDimension());
+		H.set(0, 0, 1);
+		// Measurement noise covariance matrix - store measurement uncertainty
+		// This can be re-configured based on the accuracy of the localisation system
+		Matrix R = new Matrix(1,1);
+		R.setIdentity();
+		
+		
+		// Initialise Kalman Filter to filter raw RSSI data
+		// Z (measurement) set to null until data is acquired from monitoring system
+		KalmanFilter filter = new KalmanFilter(initState,null,A,P,Q,B,H,R);
+		
 		
 		// Graphics loop - refresh whilst window is running
 		while(!Window.isClosed())
@@ -202,7 +240,8 @@ public class Main {
 			// False = Hollow circle
 			alterOpacityTimer();
 			
-			handleData(dataManager,baseCircle,devicePointers,addressTag);
+			filterData(dataManager,filter);
+			//handleData(dataManager,baseCircle,devicePointers,addressTag);
 			
 			// Carry out rendering
 			for(Device device: devicePointers)
@@ -238,6 +277,41 @@ public class Main {
 	{
 		opacityTimer += Window.getDeltaTime();
 		opacity = (float) Math.abs(Math.sin(opacityTimer));
+	}
+	
+	private static void filterData(DataManager dataManager,KalmanFilter filter)
+	{
+		for(Device device: dataManager.getFirstMonitor().getDevices())
+		{
+			// Check if the other monitors have detected the same device
+			Device checkDevice1 = dataManager.getSecondMonitor().getDeviceIfExists(device.getMacAddress());
+			Device checkDevice2 = dataManager.getThirdMonitor().getDeviceIfExists(device.getMacAddress());
+			
+			if(checkDevice1 != null && checkDevice2 != null)
+			{
+				if(device.getData().size() > 20 && checkDevice1.getData().size() > 20 && checkDevice2.getData().size() > 20)
+				{
+					for(int i = 0; i < 20; i++)
+					{
+						// No requirement of control input vector - set to 0,0,0
+						filter.predict(new Vector(new float[] {0,0,0}));
+						
+						// Acquire and set measurements
+						float dist1 = device.getData().get(i).getDistanceFromMonitor();
+						float dist2 = checkDevice1.getData().get(i).getDistanceFromMonitor();
+						float dist3 = checkDevice2.getData().get(i).getDistanceFromMonitor();
+						Vector Z = new Vector(new float[] {dist1});
+						filter.setMeasurement(Z);
+						
+						// Update state values in accordance to measurements and uncertainty
+						filter.update();
+						
+						// Output state values upon filter completion
+						//System.out.println(filter.getState());
+					}
+				}
+			}
+		}
 	}
 	
 	private static void handleData(DataManager dataManager, Shape baseCircle, List<Device> devicePointers, TextModel addressTag)

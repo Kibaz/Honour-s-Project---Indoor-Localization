@@ -8,7 +8,7 @@ public class Matrix {
 	private int x_dim;
 	private int y_dim;
 	
-	private float[][] matrix;
+	private double[][] matrix;
 	
 	// Constructor
 	public Matrix(int x_dim, int y_dim)
@@ -16,15 +16,15 @@ public class Matrix {
 		// Initialise matrix with specified values
 		this.x_dim = x_dim;
 		this.y_dim = y_dim;
-		matrix = new float[x_dim][y_dim];
+		matrix = new double[x_dim][y_dim];
 	}
 	
-	public float[][] get()
+	public double[][] get()
 	{
 		return matrix;
 	}
 	
-	public float get(int i, int j)
+	public double get(int i, int j)
 	{
 		return matrix[i][j];
 	}
@@ -46,7 +46,7 @@ public class Matrix {
 	/*
 	 * Set specified index equal to value passed
 	 */
-	public void set(int i, int j, float val)
+	public void set(int i, int j, double val)
 	{
 		matrix[i][j] = val;
 	}
@@ -90,7 +90,7 @@ public class Matrix {
 						 * in second matrix - the final value of resultant matrix
 						 * is the combination of the row X column dot product
 						 */
-						float val = this.matrix[k][j] * other.matrix[j][i];		
+						double val = this.matrix[k][j] * other.matrix[j][i];		
 						result.matrix[k][i] += val; // Append to current index of resultant matrix
 					}
 				}
@@ -109,21 +109,21 @@ public class Matrix {
 			
 			// The resultant matrix = numRows 1st matrix X numCols 2nd matrix
 			result = new Matrix(this.x_dim,other.y_dim);
-			// Being by looping through rows in resultant matrix
+			
+			// Loop through resultant matrix to set the values of the matrix
 			for(int i = 0; i < result.x_dim; i++)
 			{
-				for(int l = 0; l < result.y_dim; l++)
+				for(int j = 0; j < result.y_dim; j++)
 				{
-					for(int j = 0; j < this.x_dim; j++)
+					// Loop through first multiplier's row elements
+					// Note: first.y_dim == second.x_dim
+					for(int k = 0; k < this.y_dim; k++)
 					{
-						for(int k = 0; k < this.y_dim; k++)
-						{
-							// Calculate multiplied value for this iteration
-							float val = this.matrix[i][k] * other.matrix[k][l];
-							result.matrix[i][l] += val;
-						}
+						double val = this.matrix[i][k] * other.matrix[k][j];
+					    result.matrix[i][j] += val;
 					}
 				}
+			
 			}
 		}
 		else 
@@ -159,7 +159,7 @@ public class Matrix {
 		}
 	}
 	
-	public void setDiag(float value)
+	public void setDiag(double value)
 	{
 		// Set the values in diagonal (top-left to bottom right equal to specified value)
 		// Set all other values to 0
@@ -220,7 +220,7 @@ public class Matrix {
 		}
 		
 		// Find determinant
-		float det = determinant(this.matrix,this.matrix.length);
+		double det = determinant(this.matrix,this.matrix.length);
 		if(det == 0)
 		{
 			System.out.println("No inverse can be found!");
@@ -228,7 +228,7 @@ public class Matrix {
 		}
 		
 		// Find adjoint
-		float[][] adj = new float[this.matrix.length][this.matrix.length];
+		double[][] adj = new double[this.matrix.length][this.matrix.length];
 		adjoint(this.matrix,adj);
 		
 		// Find inverse using formula inverse(Matrix) = adj(Matrix) / det(Matrix)
@@ -243,16 +243,16 @@ public class Matrix {
 		return result;
 	}
 	
-	private float determinant(float[][] matrix, int n)
+	private double determinant(double[][] matrix, int n)
 	{
-		float det = 0;
+		double det = 0;
 		
 		if(n == 1)
 		{
 			return matrix[0][0];
 		}
 		
-		float[][] temp = new float[matrix.length][matrix.length];
+		double[][] temp = new double[matrix.length][matrix.length];
 		
 		int sign = 1; // Start with positive sign
 		
@@ -270,7 +270,7 @@ public class Matrix {
 		return det;
 	}
 	
-	private void cofactor(float[][] matrix,float[][] temp, int p, int q, int n)
+	private void cofactor(double[][] matrix,double[][] temp, int p, int q, int n)
 	{
 		int i = 0;
 		int j = 0;
@@ -293,7 +293,7 @@ public class Matrix {
 		}
 	}
 	
-	private void adjoint(float[][] matrix, float[][] adj)
+	private void adjoint(double[][] matrix, double[][] adj)
 	{
 		if(matrix.length == 1)
 		{
@@ -302,7 +302,7 @@ public class Matrix {
 		}
 		
 		int sign = 1;
-		float temp[][] = new float[matrix.length][matrix.length];
+		double temp[][] = new double[matrix.length][matrix.length];
 		
 		for(int i = 0; i < matrix.length; i++)
 		{

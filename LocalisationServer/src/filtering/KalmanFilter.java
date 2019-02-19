@@ -23,7 +23,8 @@ public class KalmanFilter {
 	
 	// Fields
 	// Specify the attributes which form the Kalman filtering algorithm
-	private Vector X; // Previous state vector
+	private Vector lastState;
+	private Vector X; // State variables vector
 	
 	private Vector Z; // Measurements returned by sensors at each location
 	
@@ -43,6 +44,7 @@ public class KalmanFilter {
 	public KalmanFilter(Vector X, Vector Z,Matrix A, Matrix P, Matrix Q, Matrix B, Matrix H, Matrix R)
 	{
 		this.X = X;
+		this.lastState = X;
 		this.A = A;
 		this.P = P;
 		this.Q = Q;
@@ -59,12 +61,13 @@ public class KalmanFilter {
 	public void update()
 	{
 		// K = P*H^{T} * (H*P*H^{T} + R) ^ -1
-		// Break equa-up H*P*H^{T} + R = S
+		// Break equation up H*P*H^{T} + R = S
 		Matrix S = H.multiply(P.multiply(H.transpose())).add(R);
 		K = P.multiply(H.transpose()).multiply(S.inverse());
-		Vector y = Z.sub(X.transform(H));
+		Vector y = Z.sub(lastState.transform(H));
 		X = X.add(y.transform(K));
-		P = I.sub(K.multiply(H)).multiply(P);
+		P = (I.sub(K.multiply(H))).multiply(P);
+		lastState = X;
 	}
 	
 	// Predict using control input unit
@@ -72,15 +75,25 @@ public class KalmanFilter {
 	public void predict(Vector u)
 	{
 		// X = A * prevState + B * u
-		X = X.transform(A).add(u.transform(B));
-		P = A.multiply(P.multiply(A.transpose())).add(Q);
+		X = lastState.transform(A).add(u.transform(B));
+		// P = A * P * A^T + Q
+		/*
+		 * Handle A * P and A^T separately
+		 * before multiplication.
+		 * 
+		 * Also, handle multiplication in order of
+		 * A^T multiplied by AP to result in correct matrix
+		 */
+		Matrix AT = A.transpose();
+		Matrix AP = A.multiply(P);
+		P = AT.multiply(AP).add(Q);
 	}
 	
-	// Predict without control input unit
+	/* Predict without control input unit
 	public void predict()
 	{
 
-	}
+	}*/
 	
 	public Vector getState()
 	{

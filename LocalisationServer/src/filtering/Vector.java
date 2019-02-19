@@ -7,7 +7,7 @@ public class Vector {
 	 */
 	
 	// Fields
-	private float[] vector;
+	private double[] vector;
 	private int dimension;
 	
 	
@@ -15,24 +15,24 @@ public class Vector {
 	public Vector(int dimension)
 	{
 		this.dimension = dimension;
-		this.vector = new float[dimension];
+		this.vector = new double[dimension];
 	}
 	
 	// Second constructor to initialise vector with set values
-	public Vector(float[] vector)
+	public Vector(double[] vector)
 	{
 		this.vector = vector;
 		this.dimension = vector.length;
 	}
 	
 	// Retrieve vector
-	public float[] get()
+	public double[] get()
 	{
 		return vector;
 	}
 	
 	// Retrieve specific value from vector
-	public float get(int i)
+	public double get(int i)
 	{
 		return vector[i];
 	}
@@ -46,7 +46,7 @@ public class Vector {
 		}
 	}
 	
-	public void set(int index, float val)
+	public void set(int index, double val)
 	{
 		vector[index] = val;
 	}
@@ -78,7 +78,7 @@ public class Vector {
 			for(int j = 0; j < matrix.getYDim(); j++)
 			{
 				// Calculate the dot product between vector and matrix
-				float val = this.vector[j] * matrix.get()[i][j];
+				double val = this.vector[j] * matrix.get()[i][j];
 				result.vector[i] += val; // Add to current value
 			}
 		}
