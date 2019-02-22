@@ -34,7 +34,7 @@ public class AppServer {
 		this.port = port;
 	}
 	
-	public void listen()
+	public void start()
 	{
 		try {
 			socket = new DatagramSocket(port);
@@ -53,8 +53,32 @@ public class AppServer {
 
 			@Override
 			public void run() {
-				
-				
+					try {
+						while(!socket.isClosed())
+						{
+							byte[] buffer = new byte[BUFFER_LENGTH];
+							DatagramPacket packet = new DatagramPacket(buffer,buffer.length);
+							socket.receive(packet);
+							
+							String message = new String(packet.getData(), 0, packet.getLength());
+							System.out.println(message);
+							
+							// Attempt to register client
+							MobileClient client = MobileClientRegister.registerClient(packet.getAddress(), "test", packet.getPort());
+							
+							if(client != null)
+							{
+								String msg = "ID: " + client.getID();
+								send(msg.getBytes(),client.getIPAddress(),client.getPort());
+							}
+						}
+					} catch (SocketException e)
+					{
+						System.out.println("App Server socket closed. Services stopped.");
+					} catch (IOException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
 			}
 			
 		});
@@ -74,6 +98,16 @@ public class AppServer {
 			socket.send(packet);
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+	
+	public void stop()
+	{
+		try {
+			socket.close(); // Close TCP socket
+			listenThread.join(); // Wait for thread to stop running
+		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
 	}

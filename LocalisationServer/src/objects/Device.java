@@ -3,6 +3,7 @@ package objects;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -12,11 +13,15 @@ import org.lwjgl.util.vector.Vector2f;
 import org.lwjgl.util.vector.Vector3f;
 
 import dataHandling.DeviceData;
+import filtering.KalmanFilter;
+import filtering.Matrix;
+import filtering.Vector;
 import fontHandling.FontStyle;
 import fontHandling.Fonts;
 import fontHandling.TextModel;
 import graphics.Loader;
 import graphics.Window;
+import utils.CSVWriter;
 
 public class Device {
 	
@@ -25,6 +30,7 @@ public class Device {
 	
 	// Each device will store a list of device data captured for the corresponding device
 	private CopyOnWriteArrayList<DeviceData> data;
+	private CopyOnWriteArrayList<Float> filteredRSSI;
 	
 	private Circle pointer; // Pointer for visualising devices location
 	
@@ -35,11 +41,91 @@ public class Device {
 	
 	private TextModel addressTag;
 	
+	private Vector lastState;
+	
+	private KalmanFilter filter;
+	
 	// Constructor
 	public Device(String macAddress)
 	{
 		this.macAddress = macAddress;
+		lastState = new Vector(new double[] {0,0});
 		data = new CopyOnWriteArrayList<>();
+		filteredRSSI = new CopyOnWriteArrayList<>();
+		initFilter();
+	}
+	
+	private void initFilter()
+	{
+		Vector initState = new Vector(new double[] {0,0});
+		// Configure state transformation matrix
+		Matrix A = new Matrix(lastState.getDimension(), lastState.getDimension());
+		A.setIdentity();
+		//A.set(0, 1, 0.2);
+		
+		Matrix P = new Matrix(lastState.getDimension(), lastState.getDimension());
+		P.setDiag(100);
+		
+		Matrix Q = new Matrix(lastState.getDimension(), lastState.getDimension());
+		Q.setDiag(0.008);
+		
+		Matrix B = new Matrix(lastState.getDimension(), lastState.getDimension());
+		B.setIdentity();
+		
+		Matrix H = new Matrix(1,2);
+		H.setIdentity();
+		
+		Matrix R = new Matrix(1,1);
+		R.set(0, 0,  Math.pow(3.480229877,2)); // R configured to covariance over 500 samples
+		
+		
+		filter = new KalmanFilter(initState,null,A,P,Q,B,H,R);
+	}
+	
+	public void smoothRSSIData()
+	{
+		filteredRSSI.clear();
+		// Configure and Model Kalman Filter for smoothing RSSI data
+
+		
+		Iterator<DeviceData> it = data.iterator();
+		List<DeviceData> toRemove = new ArrayList<>();
+		while(it.hasNext())
+		{
+			DeviceData curr = it.next();
+			float rssi = curr.getRssi();
+			
+			filter.predict(new Vector(new double[] {0,0}));
+			
+			Vector z = new Vector(new double[] {rssi});
+			filter.setMeasurement(z);
+			
+			filter.update();
+			
+			lastState = filter.getState();
+			System.out.println(lastState);
+			filteredRSSI.add((float) lastState.get(0));
+			// Register data to be removed after processing
+			toRemove.add(curr);
+		}
+		// When there is has been data to be filtered
+		
+		// Remove processed data
+		data.removeAll(toRemove);
+		
+		/*for(DeviceData deviceData: data)
+		{
+			float rssi = deviceData.getRssi();
+			
+			filter.predict(new Vector(new double[] {0,0}));
+			
+			Vector z = new Vector(new double[] {rssi});
+			filter.setMeasurement(z);
+			
+			filter.update();
+			
+			System.out.println(filter.getState());
+		}*/
 	}
 
 	public Vector2f getLocation() {
@@ -99,6 +185,16 @@ public class Device {
 	public void setAddressTag(TextModel model)
 	{
 		this.addressTag = model;
+	}
+	
+	public Vector getLastState()
+	{
+		return lastState;
+	}
+	
+	public CopyOnWriteArrayList<Float> getFilteredRSSI()
+	{
+		return filteredRSSI;
 	}
 
 	@Override

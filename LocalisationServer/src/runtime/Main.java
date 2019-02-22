@@ -21,6 +21,7 @@ import fontHandling.TextModel;
 import graphics.Loader;
 import graphics.Render;
 import graphics.Window;
+import networking.AppServer;
 import networking.Server;
 import networking.TCPServer;
 import objects.Circle;
@@ -28,6 +29,7 @@ import objects.Device;
 import objects.Monitor;
 import objects.Shape;
 import shaders.ShapeShader;
+import utils.CSVWriter;
 import utils.Maths;
 
 
@@ -35,6 +37,13 @@ public class Main {
 	
 	private static float opacityTimer = 0; 
 	private static float opacity = 0;
+	
+	private static float timer = 0;
+	
+	private static int lastSize = 0;
+	
+	private static final int SAMPLE_LIMIT = 500; // Taking 500 samples for measuring noise
+	private static int sampleCount = 0; // Sample counter
 
 	public static void main(String[] args) {
 		/*
@@ -48,6 +57,13 @@ public class Main {
 		 * Between both protocols - coded a server for each
 		 */
 		
+		// Create two CSV files to capture data for a single device
+		// This is to analyse the performance of the Kalman Filter
+		// This will allow for adjustments to be made accordingly
+		String[] header = new String[] {"device_mac","rssi_mon1","rssi_mon2","rssi_mon3"};
+		CSVWriter.createCSV("files/raw_rssi_data",header); // Capture the raw RSSI data from each monitor
+		CSVWriter.createCSV("files/filtered_rssi_data", header); // Capture the filtered RSSI data from each monitor
+		
 		// Initialise Data Manager for handling incoming data
 		DataManager dataManager = new DataManager();
 				
@@ -59,6 +75,11 @@ public class Main {
 		// TCP Server
 		TCPServer tcpServer = new TCPServer(8128);
 		tcpServer.start(dataManager);
+		
+		// App Server initialisation for handling communication with mobile devices
+		AppServer appServer = new AppServer(8127);
+		appServer.start();
+		
 		
 		// Initialise window
 		Window.init();
@@ -191,44 +212,6 @@ public class Main {
 		Matrix inverse = matrix.inverse();
 		*/
 		
-		// Initialise state variables and matrices required to instantiate Kalman Filter
-		Vector initState = new Vector(new float[] {0,0,0}); // Store 3 distance values as state variables - correspond to each monitor
-		
-		Matrix A = new Matrix(initState.getDimension(),initState.getDimension()); // Transformation matrix between states
-		A.setIdentity(); // Configure as an identity matrix as states will not be transitioned with RSSI values
-		
-		Matrix P = new Matrix(initState.getDimension(),initState.getDimension());
-		P.setIdentity(); // State covariance matrix - can be altered during filtering process - init as identity
-		
-		Matrix Q = new Matrix(initState.getDimension(), initState.getDimension());
-		Q.setIdentity(); // Noise associated with the measurements - can be calculated after measurements have been taken
-		
-		Matrix B = new Matrix(initState.getDimension(), initState.getDimension());
-		B.setIdentity(); // Control input effect matrix - redundant in RSSI filtering
-		
-		/*
-		 * The H Matrix is the measuring matrix
-		 * This tells the filter what is being measured
-		 * and how it relates to the state vector
-		 * 
-		 * Number of rows are equal to the number of variable types
-		 * i.e. distance, velocity etc...
-		 * 
-		 * Number of columns correspond to the number 
-		 * of values stored in the state vector
-		 */
-		Matrix H = new Matrix(1,initState.getDimension());
-		H.set(0, 0, 1);
-		// Measurement noise covariance matrix - store measurement uncertainty
-		// This can be re-configured based on the accuracy of the localisation system
-		Matrix R = new Matrix(1,1);
-		R.setIdentity();
-		
-		
-		// Initialise Kalman Filter to filter raw RSSI data
-		// Z (measurement) set to null until data is acquired from monitoring system
-		KalmanFilter filter = new KalmanFilter(initState,null,A,P,Q,B,H,R);
-		
 		
 		// Graphics loop - refresh whilst window is running
 		while(!Window.isClosed())
@@ -240,7 +223,8 @@ public class Main {
 			// False = Hollow circle
 			alterOpacityTimer();
 			
-			filterData(dataManager,filter);
+			timer+= Window.getDeltaTime();
+			handleDeviceData(dataManager,baseCircle,devicePointers,addressTag);
 			//handleData(dataManager,baseCircle,devicePointers,addressTag);
 			
 			// Carry out rendering
@@ -260,6 +244,7 @@ public class Main {
 			{
 				Render.drawCircle(circle);
 			}
+			
 			TextHandler.render();
 			Window.update();
 		}
@@ -270,6 +255,7 @@ public class Main {
 		TextHandler.clear();
 		tcpServer.stop(); // Stop the TCP server
 		// server.stop(); // Stop the UDP server
+		appServer.stop(); // Stop the Application Server
 		
 	}
 	
@@ -279,35 +265,96 @@ public class Main {
 		opacity = (float) Math.abs(Math.sin(opacityTimer));
 	}
 	
-	private static void filterData(DataManager dataManager,KalmanFilter filter)
+	private static void handleDeviceData(DataManager dataManager, Shape baseCircle,List<Device> pointers, TextModel addressTag)
 	{
 		for(Device device: dataManager.getFirstMonitor().getDevices())
 		{
-			// Check if the other monitors have detected the same device
-			Device checkDevice1 = dataManager.getSecondMonitor().getDeviceIfExists(device.getMacAddress());
-			Device checkDevice2 = dataManager.getThirdMonitor().getDeviceIfExists(device.getMacAddress());
+			Device device1 = dataManager.getSecondMonitor().getDeviceIfExists(device.getMacAddress());
+			Device device2 = dataManager.getThirdMonitor().getDeviceIfExists(device.getMacAddress());
 			
-			if(checkDevice1 != null && checkDevice2 != null)
+			if(device1 != null && device2 != null)
 			{
-				if(device.getData().size() > 20 && checkDevice1.getData().size() > 20 && checkDevice2.getData().size() > 20)
-				{
-					for(int i = 0; i < 20; i++)
+				
+				// Write raw RSSI data of a known device for data analysis and noise calibration
+				if(device.getMacAddress().equals("B0:47:BF:92:74:97".toLowerCase()) && sampleCount < SAMPLE_LIMIT)
+				{	
+					for(DeviceData data: device.getData())
 					{
-						// No requirement of control input vector - set to 0,0,0
-						filter.predict(new Vector(new float[] {0,0,0}));
+						Object[] row = new Object[] {device.getMacAddress(),data.getRssi()};
+						CSVWriter.appendRow(new File("files/raw_rssi_data.csv"), row);
+						sampleCount++;
+					}
+				}
+				
+				// Smooth RSSI Data
+				device.smoothRSSIData();
+				device1.smoothRSSIData();
+				device2.smoothRSSIData();
+				
+				// Write filtered RSSI data of a known device for data analysis and noise calibration
+				if(device.getMacAddress().equals("B0:47:BF:92:74:97".toLowerCase()))
+				{	
+					for(Float rssi: device.getFilteredRSSI())
+					{
+						Object[] row = new Object[] {device.getMacAddress(), rssi};
+						CSVWriter.appendRow(new File("files/filtered_rssi_data.csv"), row);
+					}
+					
+				}
+
+				
+				float dist1 = Maths.calculateDistanceFromRSSI(device.getLastState().get(0));
+				float dist2 = Maths.calculateDistanceFromRSSI(device1.getLastState().get(0));
+				float dist3 = Maths.calculateDistanceFromRSSI(device2.getLastState().get(0));
+				
+				Circle locator1 = new Circle(dataManager.getFirstMonitor(),device.getMacAddress(),
+						dist1,dataManager.getFirstMonitor().getLocation(),baseCircle,false);
+				Circle locator2 = new Circle(dataManager.getSecondMonitor(),device.getMacAddress(),
+						dist2,dataManager.getSecondMonitor().getLocation(),baseCircle,false);
+				Circle locator3 = new Circle(dataManager.getThirdMonitor(),device.getMacAddress(),
+						dist3,dataManager.getThirdMonitor().getLocation(),baseCircle,false);
+				
+				Vector2f pointOfIntersection = Maths.findPointOfIntersection(locator1, locator2, locator3);
+				if(pointOfIntersection != null)
+				{
+					// Create circle based on devices newly found location
+					Circle deviceCircle = new Circle(dataManager.getFirstMonitor(),device.getMacAddress(),
+							0.05f,pointOfIntersection,baseCircle,true);
+					deviceCircle.setColour(0, 1, 0); // Set discovered device colour to green
+					device.setPointer(deviceCircle); // Update devices pointer
+					// Set the devices location to the newly found location
+					device.setLocation(pointOfIntersection);
+					
+					// Set device locators for rendering
+					device.setLocator1(locator1);
+					device.setLocator2(locator2);
+					device.setLocator3(locator3);
+					
+					// Set radii to default value for animation
+					device.getLocator1().setRadius(0.05f);
+					device.getLocator2().setRadius(0.05f);
+					device.getLocator3().setRadius(0.05f);
+					
+					if(device.getAddressTag() != null)
+					{	
+						// Determine position of the address tag
+						Vector3f tagPos = Maths.covertCoordinates(new Vector3f(device.getLocation().x,
+								device.getLocation().y, 0)); // Z values will be zero as positional data is 2 Dimensional
 						
-						// Acquire and set measurements
-						float dist1 = device.getData().get(i).getDistanceFromMonitor();
-						float dist2 = checkDevice1.getData().get(i).getDistanceFromMonitor();
-						float dist3 = checkDevice2.getData().get(i).getDistanceFromMonitor();
-						Vector Z = new Vector(new float[] {dist1});
-						filter.setMeasurement(Z);
-						
-						// Update state values in accordance to measurements and uncertainty
-						filter.update();
-						
-						// Output state values upon filter completion
-						//System.out.println(filter.getState());
+						// Modify the address tag's position
+						float offsetX = device.getAddressTag().getMaxLineSize() / 2f;
+						float offsetY = device.getPointer().getMaxRadius();
+						device.getAddressTag().setPosition(new Vector2f(tagPos.x - offsetX,tagPos.y - offsetY));
+					}
+					
+					// If the device has not already been stored
+					if(!pointers.contains(device))
+					{
+						pointers.add(device);
+						addressTag.setContent(device.getMacAddress());
+						addressTag.setColour(1, 1, 1);
+						device.setAddressTag(addressTag);
+						TextHandler.loadText(addressTag);
 					}
 				}
 			}
@@ -325,7 +372,7 @@ public class Main {
 			
 			// If the same device has been detected by the other monitors
 			if(checkDevice1 != null && checkDevice2 != null)
-			{
+			{	
 				// Get iterator for each device data list in each device instance
 				Iterator<DeviceData> iterator1 = device.getData().iterator();
 				Iterator<DeviceData> iterator2 = checkDevice1.getData().iterator();

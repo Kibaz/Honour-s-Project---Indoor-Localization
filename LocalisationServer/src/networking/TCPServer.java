@@ -1,6 +1,7 @@
 package networking;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.ServerSocket;
@@ -14,6 +15,7 @@ import dataHandling.DataManager;
 import dataHandling.DeviceData;
 import objects.Device;
 import objects.Monitor;
+import utils.CSVWriter;
 
 public class TCPServer {
 	
@@ -127,6 +129,7 @@ public class TCPServer {
 				device.getData().add(new DeviceData(timeStamp,signal_str));
 				monitor.getDevices().add(device);
 			}
+			
 			
 		}
 	}
