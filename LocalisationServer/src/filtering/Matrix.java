@@ -36,7 +36,7 @@ public class Matrix {
 	{
 		for(int i = 0; i < x_dim; i++)
 		{
-			for(int j = 0; j < x_dim; j++)
+			for(int j = 0; j < y_dim; j++)
 			{
 				matrix[i][j] = 0;
 			}
@@ -177,6 +177,21 @@ public class Matrix {
 				}
 				
 			}
+		}
+	}
+	
+	// Method to quickly set a diagonal of a matrix to a specific value
+	// Given a starting index from the first row
+	public void setDiag(double value, int startIndex)
+	{
+		for(int i = 0; i < x_dim; i++)
+		{
+			if(startIndex >= y_dim)
+			{
+				return;
+			}
+			matrix[i][startIndex] = value;
+			startIndex++;
 		}
 	}
 	

@@ -1,10 +1,15 @@
 package networking;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketException;
+
+import dataHandling.DataManager;
+import objects.Device;
+import utils.CSVHandler;
 
 /*
  * This class will handle all communications
@@ -21,6 +26,7 @@ public class AppServer {
 	
 	// Constants
 	private static final int BUFFER_LENGTH = 512;
+	private static final int SAMPLE_LIMIT = 500; // Limit the number of samples written for data analysis
 	
 	// Fields
 	private DatagramSocket socket;
@@ -28,10 +34,15 @@ public class AppServer {
 	
 	private Thread listenThread;
 	
+	private int numAccelSamples = 0; // Counter for the number of acceleration samples taken
+	
+	private DataManager dataManager;
+	
 	// Constructor
-	public AppServer(int port)
+	public AppServer(int port, DataManager dataManager)
 	{
 		this.port = port;
+		this.dataManager = dataManager;
 	}
 	
 	public void start()
@@ -61,8 +72,6 @@ public class AppServer {
 							socket.receive(packet);
 							
 							String message = new String(packet.getData(), 0, packet.getLength());
-							System.out.println(message);
-							
 							// Attempt to register client
 							MobileClient client = MobileClientRegister.registerClient(packet.getAddress(), "test", packet.getPort());
 							
@@ -70,6 +79,20 @@ public class AppServer {
 							{
 								String msg = "ID: " + client.getID();
 								send(msg.getBytes(),client.getIPAddress(),client.getPort());
+							}
+							
+							if(message.startsWith("Acceleration"))
+							{	
+								// Only needs to run once for data processing - Acquire 500 samples
+								if(numAccelSamples < SAMPLE_LIMIT)
+								{
+									acquireAccelerationDataSamples(message);
+								}
+								else
+								{
+									// Process the acceleration data received from the mobile device
+									processAccelerationData(message);
+								}
 							}
 						}
 					} catch (SocketException e)
@@ -85,6 +108,53 @@ public class AppServer {
 		
 		listenThread.start();
 	}
+	
+	// Process acceleration data
+	private float[] processAccelerationData(String message)
+	{
+		String messageData = message.split(";")[1]; // Separate data from header
+		String[] values = messageData.split(","); // Separate each acceleration value
+		
+		// Indices 0,2 & 4 of split message data contain the headers
+		// Indices 1,3 & 5 of split message data contain the acceleration values
+		float accelX = Float.parseFloat(values[0]); // X
+		float accelY = Float.parseFloat(values[1]); // Y
+		float accelZ = Float.parseFloat(values[2]); // Z - although not necessary (measuring position in 2D space)
+		
+		float[] accelData = new float[] {accelX,accelY,accelZ};
+		String macAddress = values[values.length-1]; // Last value stores mac address in String format
+		// MAC Address from android stored in upper case whereas python sniffer is in lower case
+		Device device = dataManager.getFirstMonitor().getDeviceIfExists(macAddress.toLowerCase());
+		// Only register the device's acceleration data if it has been detected by the localisation system
+		if(device != null)
+		{
+			device.getAccelerationData().add(accelData);
+		}
+		
+		
+		return accelData;
+	}
+	
+	private void acquireAccelerationDataSamples(String message)
+	{	
+		// Write the data to a CSV for sampling and noise calibration
+		// Create a CSV with specified file name if one does not exist
+		CSVHandler.createCSV("accel_data", new String[] {"accel_x", "accel_y", "accel_z"});
+		
+		// Check if the CSV already contains 500 samples
+		
+		numAccelSamples = CSVHandler.rowCount("accel_data");
+		if(numAccelSamples >= SAMPLE_LIMIT)
+		{
+			return;
+		}
+		
+		float[] accelData = processAccelerationData(message);
+		
+		// Write the processed data to the newly created CSV
+		CSVHandler.appendRow(new File("files/accel_data.csv"), new Object[] {accelData[0],accelData[1],accelData[2]});
+	}
+	
 	
 	/*
 	 * Send data to the specified client address and port

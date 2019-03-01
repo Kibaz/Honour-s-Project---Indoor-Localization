@@ -13,7 +13,7 @@ public class DeviceData implements Comparator<DeviceData> {
 	
 	// Fields
 	private float distanceFromMonitor;
-	private long timeStamp;
+	private long timeStamp; // Double value to account for level of precision sent from python script
 	private float rssi;
 	
 	// Constructor

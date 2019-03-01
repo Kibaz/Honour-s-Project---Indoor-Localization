@@ -22,6 +22,7 @@ import graphics.Loader;
 import graphics.Render;
 import graphics.Window;
 import networking.AppServer;
+import networking.LocalisationSystem;
 import networking.Server;
 import networking.TCPServer;
 import objects.Circle;
@@ -29,7 +30,7 @@ import objects.Device;
 import objects.Monitor;
 import objects.Shape;
 import shaders.ShapeShader;
-import utils.CSVWriter;
+import utils.CSVHandler;
 import utils.Maths;
 
 
@@ -61,8 +62,8 @@ public class Main {
 		// This is to analyse the performance of the Kalman Filter
 		// This will allow for adjustments to be made accordingly
 		String[] header = new String[] {"device_mac","rssi_mon1","rssi_mon2","rssi_mon3"};
-		CSVWriter.createCSV("files/raw_rssi_data",header); // Capture the raw RSSI data from each monitor
-		CSVWriter.createCSV("files/filtered_rssi_data", header); // Capture the filtered RSSI data from each monitor
+		CSVHandler.createCSV("raw_rssi_data",header); // Capture the raw RSSI data from each monitor
+		CSVHandler.createCSV("filtered_rssi_data", header); // Capture the filtered RSSI data from each monitor
 		
 		// Initialise Data Manager for handling incoming data
 		DataManager dataManager = new DataManager();
@@ -76,8 +77,14 @@ public class Main {
 		TCPServer tcpServer = new TCPServer(8128);
 		tcpServer.start(dataManager);
 		
+		// Start localisation system - i.e. start sniffer script on remote monitors
+		
+		LocalisationSystem system = new LocalisationSystem();
+		system.startSessions();
+		system.startScripts();
+		
 		// App Server initialisation for handling communication with mobile devices
-		AppServer appServer = new AppServer(8127);
+		AppServer appServer = new AppServer(8127, dataManager); // Pass main data manager to AppServer, set port
 		appServer.start();
 		
 		
@@ -224,20 +231,25 @@ public class Main {
 			alterOpacityTimer();
 			
 			timer+= Window.getDeltaTime();
-			handleDeviceData(dataManager,baseCircle,devicePointers,addressTag);
+			//handleDeviceData(dataManager,baseCircle,devicePointers,addressTag);
 			//handleData(dataManager,baseCircle,devicePointers,addressTag);
+			
+			for(Device device: dataManager.getFirstMonitor().getDevices())
+			{
+				device.estimatePosition(dataManager,devicePointers,baseCircle,addressTag);
+			}
 			
 			// Carry out rendering
 			for(Device device: devicePointers)
 			{
-				Animator.update(device);
-				Animator.animateLocator(device.getLocator1());
-				Animator.animateLocator(device.getLocator2());
-				Animator.animateLocator(device.getLocator3());
+				//Animator.update(device);
+				//Animator.animateLocator(device.getLocator1());
+				//Animator.animateLocator(device.getLocator2());
+				//Animator.animateLocator(device.getLocator3());
 				Render.drawCircle(device.getPointer());
-				Render.drawCircle(device.getLocator1());
-				Render.drawCircle(device.getLocator2());
-				Render.drawCircle(device.getLocator3());
+				//Render.drawCircle(device.getLocator1());
+				//Render.drawCircle(device.getLocator2());
+				//Render.drawCircle(device.getLocator3());
 			}
 			
 			for(Circle circle: monitors)
@@ -256,6 +268,7 @@ public class Main {
 		tcpServer.stop(); // Stop the TCP server
 		// server.stop(); // Stop the UDP server
 		appServer.stop(); // Stop the Application Server
+		system.stop(); // Stop localisation system
 		
 	}
 	
@@ -281,7 +294,7 @@ public class Main {
 					for(DeviceData data: device.getData())
 					{
 						Object[] row = new Object[] {device.getMacAddress(),data.getRssi()};
-						CSVWriter.appendRow(new File("files/raw_rssi_data.csv"), row);
+						CSVHandler.appendRow(new File("files/raw_rssi_data.csv"), row);
 						sampleCount++;
 					}
 				}
@@ -297,7 +310,7 @@ public class Main {
 					for(Float rssi: device.getFilteredRSSI())
 					{
 						Object[] row = new Object[] {device.getMacAddress(), rssi};
-						CSVWriter.appendRow(new File("files/filtered_rssi_data.csv"), row);
+						CSVHandler.appendRow(new File("files/filtered_rssi_data.csv"), row);
 					}
 					
 				}
@@ -511,5 +524,43 @@ public class Main {
 
 		}
 	}
+	
+	/*
+	private static void recordRSSIData(DataManager dataManager)
+	{
+		Device first = dataManager.getFirstMonitor().getDeviceIfExists("b0:47:bf:92:74:97");
+		Device second = dataManager.getSecondMonitor().getDeviceIfExists("b0:47:bf:92:74:97");
+		Device third = dataManager.getThirdMonitor().getDeviceIfExists("b0:47:bf:92:74:97");
+		int sampleCount = CSVHandler.rowCount("raw_rssi_data");
+		
+		List<DeviceData> dataToRemove1 = new ArrayList<>();
+		List<DeviceData> dataToRemove2 = new ArrayList<>();
+		List<DeviceData> dataToRemove3 = new ArrayList<>();
+		if(first != null && second != null && third != null)
+		{
+			for(DeviceData d1: first.getData())
+			{
+				dataToRemove1.add(d1);
+				for(DeviceData d2: second.getData())
+				{
+					dataToRemove2.add(d2);
+					for(DeviceData d3: third.getData())
+					{
+						dataToRemove3.add(d3);
+						System.out.println(sampleCount);
+						if(d1.getTimeStamp() == d2.getTimeStamp() && d1.getTimeStamp() == d3.getTimeStamp() && sampleCount < 500)
+						{
+							CSVHandler.appendRow(new File("files/raw_rssi_data.csv"), new Object[] {"b0:47:bf:92:74:97",
+									d1.getRssi(),d2.getRssi(),d3.getRssi(),d1.getTimeStamp()});
+						}
+					}
+				}
+			}
+			
+			first.getData().removeAll(dataToRemove1);
+			second.getData().removeAll(dataToRemove2);
+			third.getData().removeAll(dataToRemove3);
+		}
+	}*/
 
 }

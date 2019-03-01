@@ -105,4 +105,18 @@ public class KalmanFilter {
 		this.Z = Z;
 	}
 
+	public void setQ(Matrix q) {
+		Q = q;
+	}
+
+	public void setA(Matrix a) {
+		A = a;
+	}
+
+	public void setB(Matrix b) {
+		B = b;
+	}
+	
+	
+
 }

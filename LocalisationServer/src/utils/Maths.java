@@ -176,5 +176,27 @@ public class Maths {
 				1 - (((coordinates.y / coordinates.w) + 1)/2f), coordinates.z);
 		return screenCoordinates;
 	}
+	
+	public static double meanSquaredError(Vector2f point,Vector2f[] monitorLocations,double[] distances)
+	{
+		double mse = 0;
+		
+		for(int i = 0; i < monitorLocations.length; i++)
+		{
+			for(int j = 0; j < distances.length; j++)
+			{
+				double distCalc = calculateCircleDistance(point.x,monitorLocations[i].x,point.y, monitorLocations[i].y);
+				mse += Math.pow(distances[j] - distCalc,2);
+			}
+
+		}
+		
+		return mse / (monitorLocations.length * distances.length);
+	}
+	
+	private static double calculateCircleDistance(double x0, double x1, double y0, double y1)
+	{
+		return Math.pow(x0-x1,2) + Math.pow(y0-y1, 2);
+	}
 
 }

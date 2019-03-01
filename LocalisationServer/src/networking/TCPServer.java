@@ -15,7 +15,7 @@ import dataHandling.DataManager;
 import dataHandling.DeviceData;
 import objects.Device;
 import objects.Monitor;
-import utils.CSVWriter;
+import utils.CSVHandler;
 
 public class TCPServer {
 	
@@ -115,9 +115,13 @@ public class TCPServer {
 			 * Must multiply by 1000 as Java handles time
 			 * in milliseconds
 			 */
-			Float tempTimeStamp = new Float(data[4]);
-			long timeStamp = System.currentTimeMillis();
+			double receivedTimeStamp = Double.parseDouble(data[4]);
+			// The conversion from double to long will round to nearest second for time-stamps
+			long timeStamp = convertDoubleToLong(receivedTimeStamp);
+			
+			// Get corresponding monitor by its MAC Address
 			Monitor monitor = dataManager.getMonitorByAddress(monitor_MAC);
+			// Get the device by mac address if it already exists
 			Device device = monitor.getDeviceIfExists(device_MAC);
 			if(device != null)
 			{
@@ -125,6 +129,7 @@ public class TCPServer {
 			}
 			else
 			{
+				// Otherwise, create a new instance for the device
 				device = new Device(device_MAC);
 				device.getData().add(new DeviceData(timeStamp,signal_str));
 				monitor.getDevices().add(device);
@@ -132,6 +137,13 @@ public class TCPServer {
 			
 			
 		}
+	}
+	
+	private long convertDoubleToLong(double value)
+	{
+		Double obj = new Double(value); // Convert to Double object
+		long result = obj.longValue(); // Get long value from Double object
+		return result;
 	}
 
 }
