@@ -230,13 +230,15 @@ public class Main {
 			// False = Hollow circle
 			alterOpacityTimer();
 			
+			appServer.updateClients(dataManager);
+			
 			timer+= Window.getDeltaTime();
 			//handleDeviceData(dataManager,baseCircle,devicePointers,addressTag);
 			//handleData(dataManager,baseCircle,devicePointers,addressTag);
 			
 			for(Device device: dataManager.getFirstMonitor().getDevices())
 			{
-				device.estimatePosition(dataManager,devicePointers,baseCircle,addressTag);
+				device.estimatePositionOnRSSIData(dataManager, devicePointers, baseCircle, addressTag);
 			}
 			
 			// Carry out rendering

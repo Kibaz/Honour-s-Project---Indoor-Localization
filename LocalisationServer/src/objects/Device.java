@@ -2,6 +2,7 @@ package objects;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -19,6 +20,7 @@ import filtering.Matrix;
 import filtering.Vector;
 import fontHandling.FontStyle;
 import fontHandling.Fonts;
+import fontHandling.TextHandler;
 import fontHandling.TextModel;
 import graphics.Loader;
 import graphics.Window;
@@ -26,6 +28,12 @@ import utils.CSVHandler;
 import utils.Maths;
 
 public class Device {
+	
+	private static final Vector2f[] ANCHOR_NODES = new Vector2f[] {
+			new Vector2f(-1,0),
+			new Vector2f(0,1),
+			new Vector2f(1,0)
+	};
 	
 	private final int SAMPLE_LIMIT = 500; // Limit trilateration point sampling to 500 samples
 	private int sampleCount = 0; // Track number of samples written to CSV for data processing
@@ -57,6 +65,8 @@ public class Device {
 	// Position estimation variables
 	private KalmanFilter positionFilter; // For carrying out filtering and predictions
 	
+	private KalmanFilter noAccelFilter; // For testing position estimations with no acceleration involved
+	
 	private Vector2f lastTrilaterationPoint;
 	
 	// Constructor
@@ -68,6 +78,7 @@ public class Device {
 		filteredRSSI = new CopyOnWriteArrayList<>();
 		accelerationData = new CopyOnWriteArrayList<>();
 		initFilter();
+		initNoAccelFilter();
 		initPositionFilter();
 	}
 	
@@ -96,6 +107,46 @@ public class Device {
 		
 		
 		filter = new KalmanFilter(initState,null,A,P,Q,B,H,R);
+	}
+	
+	private void initNoAccelFilter()
+	{
+		// Model state vector with state variables X and Y positions
+		Vector initState = new Vector(new double[] {0,0});
+		
+		// Model transition matrix with dimensions of state vector
+		Matrix A = new Matrix(initState.getDimension(),initState.getDimension());
+		A.setIdentity(); // System has no input of velocity / acceleration - configure identity matrix
+		
+		// State covariance matrix to describe how he state variables vary
+		Matrix P = new Matrix(initState.getDimension(),initState.getDimension());
+		P.setDiag(100); // We do not know the exact initial state of the device's position
+		
+		Matrix B = new Matrix(initState.getDimension(),initState.getDimension());
+		B.setIdentity(); // No B matrix required as there is no control input to consider
+		
+		// Matrix R (measurement covariance matrix) dimensions are based on number of anchor nodes
+		// In this case 3, because we have 3 PIs in operation
+		// The covaraince will represent the covariance of the distance from each anchor node over 500 samples
+		Matrix R = new Matrix(3,3);
+		R.set(0, 0, 0.652679593);
+		R.set(1, 1, 0.76258859);
+		R.set(2, 2, 0.290954804);
+		
+		// Process noise covariance matrix
+		// Define with small values for now
+		Matrix Q = new Matrix(initState.getDimension(),initState.getDimension());
+		Q.setDiag(0.01);
+		
+		// Measurement matrix - describe how the state variables relate to the measurements vector 
+		// Dimensions = num anchor nodes x num state variables
+		Matrix H = new Matrix(3,2);
+		H.setZero(); // Configure actual values of this matrix later - Jacobian H matrix
+		
+		
+		noAccelFilter = new KalmanFilter(initState,null,A,P,Q,B,H,R);
+		
+		noAccelFilter.setJacobianH(new Vector2f(0,0), ANCHOR_NODES); // No current known position of mobile device
 	}
 	
 	/*
@@ -265,6 +316,7 @@ public class Device {
 			if(optimisedPoint != null)
 			{
 				lastTrilaterationPoint = optimisedPoint;
+				System.out.println(optimisedPoint);
 				/*Circle pointer = new Circle(dataManager.getFirstMonitor(),this.macAddress,0.05f,
 					optimisedPoint,baseCircle,true);
 				
@@ -365,6 +417,150 @@ public class Device {
 			
 		}
 		
+	}
+	
+	public void estimatePositionOnRSSIData(DataManager dataManager,List<Device> devicePointers, Shape baseCircle, TextModel addressTag)
+	{
+		Device first = dataManager.getFirstMonitor().getDeviceIfExists(this.macAddress);
+		Device second = dataManager.getSecondMonitor().getDeviceIfExists(this.macAddress);
+		Device third = dataManager.getThirdMonitor().getDeviceIfExists(this.macAddress);
+		
+		if(first != null && second != null && third != null)
+		{
+			// Store iterable map of points and distances
+			Map<Vector2f, double[]> pointsWithDistances = new HashMap<>();
+			
+			List<DeviceData> dataToRemove1 = new ArrayList<>();
+			List<DeviceData> dataToRemove2 = new ArrayList<>();
+			List<DeviceData> dataToRemove3 = new ArrayList<>();
+			// Trilateration process to acquire distances and points
+			int itCount1 = 0;
+			int itCount2 = 0;
+			for(int i = 0; i < first.getData().size(); i++)
+			{
+				DeviceData data1 = first.getData().get(i);
+				dataToRemove1.add(data1);
+				for(int j = 0; j < second.getData().size(); j++)
+				{
+					DeviceData data2 = second.getData().get(j);
+					if(itCount1 == 0) dataToRemove2.add(data2);
+					if(j == second.getData().size()-1) itCount1++;
+					for(int k = 0; k < third.getData().size(); k++)
+					{
+						DeviceData data3 = third.getData().get(k);
+						if(itCount2 == 0) dataToRemove3.add(data3);
+						if(k == third.getData().size()-1) itCount2++;
+						double[] distances = new double[] {
+							data1.getDistanceFromMonitor(),
+							data2.getDistanceFromMonitor(),
+							data3.getDistanceFromMonitor()
+						};
+						Circle c1 = new Circle(dataManager.getFirstMonitor(),this.macAddress,data1.getDistanceFromMonitor(),
+								dataManager.getFirstMonitor().getLocation(),baseCircle,false);
+						Circle c2 = new Circle(dataManager.getSecondMonitor(),this.macAddress,data2.getDistanceFromMonitor(),
+								dataManager.getSecondMonitor().getLocation(),baseCircle,false);
+						Circle c3 = new Circle(dataManager.getThirdMonitor(),this.macAddress,data3.getDistanceFromMonitor(),
+								dataManager.getThirdMonitor().getLocation(),baseCircle,false);
+						Vector2f[] points_c1_c2 = Maths.pointsOfIntersection(c1, c2);
+						Vector2f[] points_c1_c3 = Maths.pointsOfIntersection(c1, c3);
+						Vector2f[] points_c2_c3 = Maths.pointsOfIntersection(c2, c3);
+						
+						for(int l = 0; l < points_c1_c2.length; l++) pointsWithDistances.put(points_c1_c2[l], distances);
+						for(int l = 0; l < points_c1_c3.length; l++) pointsWithDistances.put(points_c1_c3[l], distances);
+						for(int l = 0; l < points_c2_c3.length; l++) pointsWithDistances.put(points_c2_c3[l], distances);
+						
+					}
+				}
+				
+			}
+			
+			// Record distance values for calibration purposes and noise filtering
+			CSVHandler.createCSV("distance1", new String[] {"d1"});
+			CSVHandler.createCSV("distance2", new String[] {"d2"});
+			CSVHandler.createCSV("distance3", new String[] {"d3"});
+			for(DeviceData data: first.getData())
+			{
+				
+				
+				if(CSVHandler.rowCount("distance1") < 500)
+				{
+					CSVHandler.appendRow(new File("files/distance1.csv"), new Object[] {data.getDistanceFromMonitor()});
+				}
+			}
+			
+			for(DeviceData data: second.getData())
+			{
+				
+				
+				if(CSVHandler.rowCount("distance2") < 500)
+				{
+					CSVHandler.appendRow(new File("files/distance2.csv"), new Object[] {data.getDistanceFromMonitor()});
+				}
+			}
+			
+			for(DeviceData data: third.getData())
+			{
+				
+				
+				if(CSVHandler.rowCount("distance3") < 500)
+				{
+					CSVHandler.appendRow(new File("files/distance3.csv"), new Object[] {data.getDistanceFromMonitor()});
+				}
+			}
+			
+			for(Vector2f point: pointsWithDistances.keySet())
+			{
+				noAccelFilter.predict(new Vector(new double[] {0,0}));
+				
+				noAccelFilter.setJacobianH(point, ANCHOR_NODES); // Re-configure jacobian matrix
+				
+				Vector Z = new Vector(new double[] {
+						pointsWithDistances.get(point)[0],
+						pointsWithDistances.get(point)[1],
+						pointsWithDistances.get(point)[2]
+				});
+				
+				noAccelFilter.setMeasurement(Z);
+				
+				noAccelFilter.update();
+				
+				System.out.println(noAccelFilter.getState());
+				
+			}
+			
+			Vector2f position = new Vector2f((float) noAccelFilter.getState().get(0),(float) noAccelFilter.getState().get(1));
+			Circle pointer = new Circle(dataManager.getFirstMonitor(),this.macAddress,0.05f,position,baseCircle,true);
+			pointer.setColour(0, 1, 0);
+			this.setLocation(position);
+			
+			if(this.getAddressTag() != null)
+			{
+				// Determine position of the address tag
+				Vector3f tagPos = Maths.covertCoordinates(new Vector3f(this.getLocation().x,
+						this.getLocation().y, 0)); // Z values will be zero as positional data is 2 Dimensional
+				
+				// Modify the address tag's position
+				float offsetX = this.getAddressTag().getMaxLineSize() / 2f;
+				float offsetY = this.getPointer().getMaxRadius();
+				this.getAddressTag().setPosition(new Vector2f(tagPos.x - offsetX,tagPos.y - offsetY));
+			}
+			
+			
+			this.setPointer(pointer);
+			if(!devicePointers.contains(this))
+			{
+				devicePointers.add(this);
+				addressTag.setColour(1, 1, 1);
+				addressTag.setContent(this.macAddress);
+				this.setAddressTag(addressTag);
+				TextHandler.loadText(addressTag);
+			}
+			
+			
+			first.getData().removeAll(dataToRemove1);
+			second.getData().removeAll(dataToRemove2);
+			third.getData().removeAll(dataToRemove3);
+		}
 	}
 	
 	private Vector2f trilateration(DataManager dataManager,Device first, Device second, Device third)
@@ -468,7 +664,6 @@ public class Device {
 			return pointsFound.get(bestPointIndex);
 		}
 
-		
 		
 		return null;
 	}

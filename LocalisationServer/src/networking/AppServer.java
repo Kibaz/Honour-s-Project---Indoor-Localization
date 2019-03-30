@@ -7,8 +7,11 @@ import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketException;
 
+import org.lwjgl.util.vector.Vector2f;
+
 import dataHandling.DataManager;
 import objects.Device;
+import objects.Monitor;
 import utils.CSVHandler;
 
 /*
@@ -72,8 +75,18 @@ public class AppServer {
 							socket.receive(packet);
 							
 							String message = new String(packet.getData(), 0, packet.getLength());
+							
+							String macAddress = "";
+							if(message.contains("Connecting"))
+							{
+								macAddress = message.split(" ")[1];
+								System.out.println(macAddress);
+							}
+							
 							// Attempt to register client
-							MobileClient client = MobileClientRegister.registerClient(packet.getAddress(), "test", packet.getPort());
+							MobileClient client = MobileClientRegister.registerClient(packet.getAddress(), macAddress.toLowerCase(), packet.getPort());
+							
+							System.out.println(message);
 							
 							if(client != null)
 							{
@@ -180,6 +193,34 @@ public class AppServer {
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
+	}
+	
+	/*
+	 * This method will be used to update mobile clients
+	 * with data such as location data processed by the
+	 * localisation system
+	 */
+	public void updateClients(DataManager dataManager)
+	{
+		// Retrieve one of the three monitors from localisation system
+		Monitor monitor = dataManager.getFirstMonitor(); 
+		for(Device device: monitor.getDevices())
+		{
+			Vector2f location = device.getLocation();
+			MobileClient client = MobileClientRegister.getClientByMACAddress(device.getMacAddress());
+			if(location != null && client != null)
+			{
+				System.out.println(MobileClientRegister.getRegisteredClients().size());
+				for(int key: MobileClientRegister.getRegisteredClients().keySet())
+				{
+					String msgToSend = "New location " + location.x + "," + location.y + "," + client.getMacAddress();
+					MobileClient clientToReceive = MobileClientRegister.getClientByID(key);
+					send(msgToSend.getBytes(),clientToReceive.getIPAddress(),clientToReceive.getPort());
+				}
+
+			}
+		}
+		
 	}
 	
 

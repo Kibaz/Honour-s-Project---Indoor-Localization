@@ -1,5 +1,9 @@
 package filtering;
 
+import org.lwjgl.util.vector.Vector2f;
+
+import utils.Maths;
+
 public class KalmanFilter {
 	
 	// Notes:
@@ -103,6 +107,15 @@ public class KalmanFilter {
 	public void setMeasurement(Vector Z)
 	{
 		this.Z = Z;
+	}
+	
+	public void setJacobianH(Vector2f mobPos, Vector2f[] anchors)
+	{
+		for(int i = 0; i < anchors.length; i++)
+		{
+			H.set(i, 0, Maths.jacobianValue(mobPos.x-anchors[i].x, Maths.euclideanDistance(mobPos, anchors[i])));
+			H.set(i, 1, Maths.jacobianValue(mobPos.x-anchors[i].x, Maths.euclideanDistance(mobPos, anchors[i])));
+		}
 	}
 
 	public void setQ(Matrix q) {

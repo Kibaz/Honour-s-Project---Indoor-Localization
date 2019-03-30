@@ -26,6 +26,11 @@ public class MobileClientRegister {
 	 */
 	private static Map<Integer,MobileClient> registeredClients = new HashMap<>();
 	
+	public static Map<Integer,MobileClient> getRegisteredClients()
+	{
+		return registeredClients;
+	}
+	
 	
 	// Method to register a new mobile client using the specified information
 	// Do not register the client if it has already been registered

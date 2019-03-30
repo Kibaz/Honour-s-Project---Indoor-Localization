@@ -198,5 +198,15 @@ public class Maths {
 	{
 		return Math.pow(x0-x1,2) + Math.pow(y0-y1, 2);
 	}
+	
+	public static double euclideanDistance(Vector2f p1, Vector2f p2)
+	{
+		return Math.sqrt(Math.pow(p1.x-p2.x, 2) + Math.pow(p1.y-p2.y, 2));
+	}
+	
+	public static double jacobianValue(double val1, double val2)
+	{
+		return val1/val2;
+	}
 
 }
