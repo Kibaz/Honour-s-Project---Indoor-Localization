@@ -5,6 +5,8 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
+import javax.swing.Renderer;
+
 import org.lwjgl.util.vector.Vector2f;
 import org.lwjgl.util.vector.Vector3f;
 
@@ -25,6 +27,7 @@ import networking.AppServer;
 import networking.LocalisationSystem;
 import networking.Server;
 import networking.TCPServer;
+import objects.Camera;
 import objects.Circle;
 import objects.Device;
 import objects.Monitor;
@@ -64,6 +67,8 @@ public class Main {
 		String[] header = new String[] {"device_mac","rssi_mon1","rssi_mon2","rssi_mon3"};
 		CSVHandler.createCSV("raw_rssi_data",header); // Capture the raw RSSI data from each monitor
 		CSVHandler.createCSV("filtered_rssi_data", header); // Capture the filtered RSSI data from each monitor
+		
+		
 		
 		// Initialise Data Manager for handling incoming data
 		DataManager dataManager = new DataManager();
@@ -128,11 +133,11 @@ public class Main {
 		 * Initialise a circle to be drawn for each monitor
 		 * Use monitor location as centre of the circle
 		 */
-		Circle monitor1 = new Circle(dataManager.getFirstMonitor(),"",0.05f,dataManager.getFirstMonitor().getLocation(),baseCircle,true);
+		Circle monitor1 = new Circle(dataManager.getFirstMonitor(),"",0.25f,dataManager.getFirstMonitor().getLocation(),baseCircle,true);
 		monitor1.setColour(1, 0, 0);
-		Circle monitor2 = new Circle(dataManager.getSecondMonitor(),"",0.05f,dataManager.getSecondMonitor().getLocation(),baseCircle,true); 
+		Circle monitor2 = new Circle(dataManager.getSecondMonitor(),"",0.25f,dataManager.getSecondMonitor().getLocation(),baseCircle,true); 
 		monitor2.setColour(1, 0, 0);
-		Circle monitor3 = new Circle(dataManager.getThirdMonitor(),"",0.05f,dataManager.getThirdMonitor().getLocation(),baseCircle,true);
+		Circle monitor3 = new Circle(dataManager.getThirdMonitor(),"",0.25f,dataManager.getThirdMonitor().getLocation(),baseCircle,true);
 		monitor3.setColour(1, 0, 0);
 		
 		/*
@@ -218,45 +223,48 @@ public class Main {
 		System.out.println(matrix);
 		Matrix inverse = matrix.inverse();
 		*/
+		Camera camera = new Camera();
+		Render render = new Render();
 		
 		
 		// Graphics loop - refresh whilst window is running
 		while(!Window.isClosed())
 		{	
 			Window.clear();
-			Render.prepare(); // Clear window
+			render.prepare(); // Clear window
 			// Use renderer to draw a circle
 			// True = Fill circle
 			// False = Hollow circle
 			alterOpacityTimer();
+			camera.move();
 			
 			appServer.updateClients(dataManager);
 			
 			timer+= Window.getDeltaTime();
-			//handleDeviceData(dataManager,baseCircle,devicePointers,addressTag);
+			handleDeviceData(dataManager,baseCircle,devicePointers,addressTag);
 			//handleData(dataManager,baseCircle,devicePointers,addressTag);
 			
-			for(Device device: dataManager.getFirstMonitor().getDevices())
+			/*for(Device device: dataManager.getFirstMonitor().getDevices())
 			{
 				device.estimatePositionOnRSSIData(dataManager, devicePointers, baseCircle, addressTag);
-			}
+			}*/
 			
 			// Carry out rendering
 			for(Device device: devicePointers)
 			{
-				//Animator.update(device);
-				//Animator.animateLocator(device.getLocator1());
-				//Animator.animateLocator(device.getLocator2());
-				//Animator.animateLocator(device.getLocator3());
-				Render.drawCircle(device.getPointer());
-				//Render.drawCircle(device.getLocator1());
-				//Render.drawCircle(device.getLocator2());
-				//Render.drawCircle(device.getLocator3());
+				Animator.update(device);
+				Animator.animateLocator(device.getLocator1());
+				Animator.animateLocator(device.getLocator2());
+				Animator.animateLocator(device.getLocator3());
+				render.drawCircle(device.getPointer(),camera);
+				render.drawCircle(device.getLocator1(),camera);
+				render.drawCircle(device.getLocator2(),camera);
+				render.drawCircle(device.getLocator3(),camera);
 			}
 			
 			for(Circle circle: monitors)
 			{
-				Render.drawCircle(circle);
+				render.drawCircle(circle,camera);
 			}
 			
 			TextHandler.render();
@@ -291,7 +299,7 @@ public class Main {
 			{
 				
 				// Write raw RSSI data of a known device for data analysis and noise calibration
-				if(device.getMacAddress().equals("B0:47:BF:92:74:97".toLowerCase()) && sampleCount < SAMPLE_LIMIT)
+				if(device.getMacAddress().equals("B0:47:BF:92:74:97".toLowerCase()) && CSVHandler.rowCount("raw_rssi_data") < SAMPLE_LIMIT)
 				{	
 					for(DeviceData data: device.getData())
 					{
@@ -307,7 +315,7 @@ public class Main {
 				device2.smoothRSSIData();
 				
 				// Write filtered RSSI data of a known device for data analysis and noise calibration
-				if(device.getMacAddress().equals("B0:47:BF:92:74:97".toLowerCase()))
+				if(device.getMacAddress().equals("B0:47:BF:92:74:97".toLowerCase()) && CSVHandler.rowCount("filtered_rssi_data") < SAMPLE_LIMIT)
 				{	
 					for(Float rssi: device.getFilteredRSSI())
 					{
@@ -328,6 +336,7 @@ public class Main {
 						dist2,dataManager.getSecondMonitor().getLocation(),baseCircle,false);
 				Circle locator3 = new Circle(dataManager.getThirdMonitor(),device.getMacAddress(),
 						dist3,dataManager.getThirdMonitor().getLocation(),baseCircle,false);
+				
 				
 				Vector2f pointOfIntersection = Maths.findPointOfIntersection(locator1, locator2, locator3);
 				if(pointOfIntersection != null)

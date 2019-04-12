@@ -3,12 +3,17 @@ package graphics;
 import java.nio.IntBuffer;
 
 import org.lwjgl.glfw.GLFW;
+import org.lwjgl.glfw.GLFWCursorPosCallback;
 import org.lwjgl.glfw.GLFWErrorCallback;
+import org.lwjgl.glfw.GLFWMouseButtonCallback;
 import org.lwjgl.glfw.GLFWVidMode;
 import org.lwjgl.opengl.GL;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.system.MemoryStack;
 import org.lwjgl.system.MemoryUtil;
+
+import inputs.MouseButton;
+import inputs.MouseCursor;
 
 public class Window {
 	
@@ -35,6 +40,16 @@ public class Window {
 	
 	private static double lastFrameInterval;
 	private static float delta;
+	
+	// Mouse input handling
+	private static GLFWCursorPosCallback cursorCallback; // Mouse cursor position tracking
+	private static GLFWMouseButtonCallback mouseButtonCallback; // Mouse button listener
+	
+	private static float lastCursorPosX;
+	private static float lastCursorPosY;
+	
+	private static float mouseDeltaX;
+	private static float mouseDeltaY;
 	
 	
 	/*
@@ -67,6 +82,14 @@ public class Window {
 			throw new RuntimeException("Failed to initialise/create the GLFW window for graphical display!");
 		}
 		
+		
+		// Configure input callbacks
+		cursorCallback = new MouseCursor();
+		GLFW.glfwSetCursorPosCallback(windowID, cursorCallback);
+		
+		mouseButtonCallback = new MouseButton();
+		GLFW.glfwSetMouseButtonCallback(windowID, mouseButtonCallback);
+		
 		// Create memory stack for initialising vid mode
 		/*
 		 * Vid Mode in GLFW allows for control over window positioning
@@ -96,6 +119,8 @@ public class Window {
 			GLFW.glfwShowWindow(windowID); // Spawn window
 			
 			lastFrameInterval = GLFW.glfwGetTime();
+			lastCursorPosX = MouseCursor.getXPos();
+			lastCursorPosY = MouseCursor.getYPos();
 		}
 	}
 	
@@ -119,11 +144,23 @@ public class Window {
 		double currentFrameTime = GLFW.glfwGetTime();
 		delta = (float) (currentFrameTime - lastFrameInterval);
 		lastFrameInterval = currentFrameTime;
+		
+		float currentMousePosX = MouseCursor.getXPos();
+		float currentMousePosY = MouseCursor.getYPos();
+		mouseDeltaX = currentMousePosX - lastCursorPosX;
+		mouseDeltaY = currentMousePosY - lastCursorPosY;
+		lastCursorPosX = currentMousePosX;
+		lastCursorPosY = currentMousePosY;
 	}
 	
 	public static float getDeltaTime()
 	{
 		return delta;
+	}
+	
+	public static long getWindowID()
+	{
+		return windowID;
 	}
 	
 	public static int getWidth()
@@ -134,6 +171,16 @@ public class Window {
 	public static int getHeight()
 	{
 		return HEIGHT;
+	}
+	
+	public static float getMouseDeltaX()
+	{
+		return mouseDeltaX;
+	}
+	
+	public static float getMouseDeltaY()
+	{
+		return mouseDeltaY;
 	}
 	
 	/*

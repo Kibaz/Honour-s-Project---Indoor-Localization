@@ -88,7 +88,7 @@ public class Device {
 		// Configure state transformation matrix
 		Matrix A = new Matrix(lastState.getDimension(), lastState.getDimension());
 		A.setIdentity();
-		//A.set(0, 1, 0.2);
+		A.set(0, 1, 0.2);
 		
 		Matrix P = new Matrix(lastState.getDimension(), lastState.getDimension());
 		P.setDiag(100);

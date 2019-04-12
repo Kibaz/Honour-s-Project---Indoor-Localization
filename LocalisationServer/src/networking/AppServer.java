@@ -207,13 +207,12 @@ public class AppServer {
 		for(Device device: monitor.getDevices())
 		{
 			Vector2f location = device.getLocation();
-			MobileClient client = MobileClientRegister.getClientByMACAddress(device.getMacAddress());
-			if(location != null && client != null)
+			//MobileClient client = MobileClientRegister.getClientByMACAddress(device.getMacAddress());
+			if(location != null)
 			{
-				System.out.println(MobileClientRegister.getRegisteredClients().size());
 				for(int key: MobileClientRegister.getRegisteredClients().keySet())
 				{
-					String msgToSend = "New location " + location.x + "," + location.y + "," + client.getMacAddress();
+					String msgToSend = "New location " + location.x + "," + location.y + "," + device.getMacAddress();
 					MobileClient clientToReceive = MobileClientRegister.getClientByID(key);
 					send(msgToSend.getBytes(),clientToReceive.getIPAddress(),clientToReceive.getPort());
 				}

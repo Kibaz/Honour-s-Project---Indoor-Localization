@@ -5,6 +5,7 @@ import org.lwjgl.util.vector.Vector2f;
 import org.lwjgl.util.vector.Vector3f;
 import org.lwjgl.util.vector.Vector4f;
 
+import objects.Camera;
 import objects.Circle;
 
 public class Maths {
@@ -156,6 +157,23 @@ public class Maths {
 		Matrix4f.rotate((float) Math.toRadians(rz), new Vector3f(0,0,1), matrix, matrix);
 		Matrix4f.scale(new Vector3f(scale,scale,scale), matrix, matrix);
 		return matrix;
+	}
+	
+	/*
+	 * Create a view matrix to be ported
+	 * To the GLSL shaders which will handle changing
+	 * of the viewport
+	 */
+	public static Matrix4f createViewMatrix(Camera camera)
+	{
+		Matrix4f viewMatrix = new Matrix4f();
+		viewMatrix.setIdentity();
+		Matrix4f.rotate((float) Math.toRadians(camera.getPitch()), new Vector3f(1,0,0), viewMatrix, viewMatrix);
+		Matrix4f.rotate((float) Math.toRadians(camera.getYaw()), new Vector3f(0,1,0), viewMatrix, viewMatrix);
+		Vector3f cameraPos = camera.getPosition();
+		Vector3f inverseCameraPos = new Vector3f(-cameraPos.x, -cameraPos.y, -cameraPos.z);
+		Matrix4f.translate(inverseCameraPos, viewMatrix, viewMatrix);
+		return viewMatrix;
 	}
 	
 	/*
