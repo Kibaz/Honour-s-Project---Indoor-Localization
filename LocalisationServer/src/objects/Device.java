@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
+import org.lwjgl.util.vector.Matrix4f;
 import org.lwjgl.util.vector.Vector2f;
 import org.lwjgl.util.vector.Vector3f;
 
@@ -30,9 +31,9 @@ import utils.Maths;
 public class Device {
 	
 	private static final Vector2f[] ANCHOR_NODES = new Vector2f[] {
-			new Vector2f(-1,0),
-			new Vector2f(0,1),
-			new Vector2f(1,0)
+			new Vector2f(0,0),
+			new Vector2f(0,-3.565f),
+			new Vector2f(3.9f,-3.565f)
 	};
 	
 	private final int SAMPLE_LIMIT = 500; // Limit trilateration point sampling to 500 samples
@@ -269,6 +270,115 @@ public class Device {
 		}*/
 	}
 	
+	public void estimatePoisitonWithMSE(DataManager dataManager, List<Device> devicePointers, Shape baseCircle)
+	{
+		// Collect all data for this current device
+		Device first = dataManager.getFirstMonitor().getDeviceIfExists(this.macAddress);
+		Device second = dataManager.getSecondMonitor().getDeviceIfExists(this.macAddress);
+		Device third = dataManager.getThirdMonitor().getDeviceIfExists(this.macAddress);
+		
+		// Commented code used to extract data for calibration and noise reduction
+		/*if(this.macAddress.equals("b0:47:bf:92:74:97") && sampleCount < SAMPLE_LIMIT)
+		{
+			CSVHandler.createCSV("trilat_results", new String[] {"x","y"});
+			sampleCount = CSVHandler.rowCount("trilat_results"); // Find number of samples in file
+			System.out.println(sampleCount);
+		}*/
+		
+		deltaTime += Window.getDeltaTime(); // Increment delta time over each iteration
+		
+		// Check whether data has been received from this device by each monitor
+		if(first != null && second != null && third != null)
+		{
+			// Commented code used to extract data for calibration and noise reduction
+			/*for(Vector2f point: points)
+			{
+				
+				if(this.macAddress.equals("b0:47:bf:92:74:97") && sampleCount < SAMPLE_LIMIT)
+				{
+					CSVHandler.appendRow(new File("files/trilat_results.csv"), new Object[] {point.x,point.y});
+				}
+				
+			}*/
+			
+			// Carry out position estimation algorithms
+			// Carry out trilateration algorithm with received device data
+			Vector2f optimisedPoint = trilateration(dataManager,first,second,third);
+			if(optimisedPoint != null)
+			{
+				// Set optimised point as device's location
+				Circle pointer = new Circle(dataManager.getFirstMonitor(),this.macAddress,0.05f,optimisedPoint,baseCircle,true);
+				pointer.setColour(0, 1, 0);
+				this.setPointer(pointer);
+				this.setLocation(optimisedPoint);
+				
+				// Generate locator rings for localise point
+				Circle locator1 = new Circle(dataManager.getFirstMonitor(),this.macAddress,
+						(float) Maths.euclideanDistance(optimisedPoint, ANCHOR_NODES[0]),
+						dataManager.getFirstMonitor().getLocation(),baseCircle,false);
+				locator1.setColour(0, 0, 0);
+				
+				Circle locator2 = new Circle(dataManager.getSecondMonitor(),this.macAddress,
+						(float) Maths.euclideanDistance(optimisedPoint, ANCHOR_NODES[1]),
+						dataManager.getSecondMonitor().getLocation(),baseCircle,false);
+				locator2.setColour(0, 0, 0);
+				
+				Circle locator3 = new Circle(dataManager.getThirdMonitor(),this.macAddress,
+						(float) Maths.euclideanDistance(optimisedPoint, ANCHOR_NODES[2]),
+						dataManager.getThirdMonitor().getLocation(),baseCircle,false);
+				locator3.setColour(0, 0, 0);
+				
+				// Set radius to 0.05f to prepare for animation rendering
+				locator1.setRadius(0.05f);
+				locator2.setRadius(0.05f);
+				locator3.setRadius(0.05f);
+				
+				this.setLocator1(locator1);
+				this.setLocator2(locator2);
+				this.setLocator3(locator3);
+
+				
+				if(!devicePointers.contains(this))
+				{
+					devicePointers.add(this);
+				}
+				
+			}
+			
+		}
+	}
+	
+	public void updateAddressTag(Camera camera, Matrix4f pm)
+	{
+		// MAC Address tag positioning
+		// Determine position of the address tag
+		if(this.location != null)
+		{
+			Vector3f tagPos = Maths.covertCoordinates(new Vector3f(this.getLocation().x,
+					this.getLocation().y, 0),camera,pm); // Z values will be zero as positional data is 2 Dimensional
+			if(this.addressTag == null)
+			{
+				// Modify the address tag's position
+				TextModel addrTag = new TextModel(this.macAddress,0.75f,Fonts.arial,new Vector2f(tagPos.x,tagPos.y),0.2f,true);
+				float offsetX = addrTag.getMaxLineSize() / 2f;
+				float offsetY = this.getPointer().getMaxRadius();
+				this.addressTag = addrTag;
+				this.addressTag.setColour(1, 1, 1); // White Text
+				TextHandler.loadText(this.addressTag);
+			}else
+			{
+				float offsetX = this.getAddressTag().getMaxLineSize() / 2f;
+				float offsetY = this.getPointer().getMaxRadius();
+				TextHandler.removeText(this.addressTag); // Remove before handling changes to text
+				this.addressTag.setContent(this.macAddress);
+				this.addressTag.setPosition(new Vector2f(tagPos.x,tagPos.y));
+				this.addressTag.setColour(1, 1, 1);
+				TextHandler.loadText(addressTag);
+			}
+		}
+
+	}
+	
 	public void estimatePosition(DataManager dataManager, List<Device> devicePointers, Shape baseCircle, TextModel addressTag)
 	{
 		// Collect all data for this current device
@@ -419,7 +529,7 @@ public class Device {
 		
 	}
 	
-	public void estimatePositionOnRSSIData(DataManager dataManager,List<Device> devicePointers, Shape baseCircle, TextModel addressTag)
+	public void estimatePositionOnRSSIData(DataManager dataManager,List<Device> devicePointers, Shape baseCircle, TextModel addressTag,Camera camera, Matrix4f pm)
 	{
 		Device first = dataManager.getFirstMonitor().getDeviceIfExists(this.macAddress);
 		Device second = dataManager.getSecondMonitor().getDeviceIfExists(this.macAddress);
@@ -537,7 +647,7 @@ public class Device {
 			{
 				// Determine position of the address tag
 				Vector3f tagPos = Maths.covertCoordinates(new Vector3f(this.getLocation().x,
-						this.getLocation().y, 0)); // Z values will be zero as positional data is 2 Dimensional
+						this.getLocation().y, 0),camera,pm); // Z values will be zero as positional data is 2 Dimensional
 				
 				// Modify the address tag's position
 				float offsetX = this.getAddressTag().getMaxLineSize() / 2f;
@@ -564,108 +674,86 @@ public class Device {
 	}
 	
 	private Vector2f trilateration(DataManager dataManager,Device first, Device second, Device third)
-	{
-		List<Vector2f> pointsFound = new ArrayList<>(); // Store list of points found by algorithm
-		List<Vector2f[]> pointsOfX = new ArrayList<>(); // Store arrays of points to fill found points array
+	{	
+		List<DeviceData> dataToRemove1 = new ArrayList<>();
+		List<DeviceData> dataToRemove2 = new ArrayList<>();
+		List<DeviceData> dataToRemove3 = new ArrayList<>();
 		
-		// Loop through the data received from each monitor for this device
-		// Acquire all points of intersection created by the RSSI data
+		Vector2f optimisedPoint = null;
 		
-		double[] distances = new double[first.getData().size() + second.getData().size() + third.getData().size()];
-		int distCount = 0;
-		for(int i = 0; i < first.getData().size(); i++)
+		Map<Double, Vector2f> pointsToMSE = new HashMap<>();
+		int firstItCount = 0;
+		int secondItCount = 0;
+		// Loop through all the data for each monitor
+		for(DeviceData set1: first.getData())
 		{
-			distances[distCount] = first.getData().get(i).getDistanceFromMonitor();
-			distCount++;
-		}
-		
-		for(int i = 0; i < second.getData().size(); i++)
-		{
-			distances[distCount] = second.getData().get(i).getDistanceFromMonitor();
-			distCount++;
-		}
-		
-		for(int i = 0; i < third.getData().size(); i++)
-		{
-			distances[distCount] = third.getData().get(i).getDistanceFromMonitor();
-			distCount++;
-		}
-		
-		// Locators from First and Second monitor
-		for(DeviceData data1: first.getData())
-		{
-			Circle c1 = new Circle(dataManager.getFirstMonitor(),first.getMacAddress(),data1.getDistanceFromMonitor(),
+			Circle c1 = new Circle(dataManager.getFirstMonitor(),this.macAddress,set1.getDistanceFromMonitor(),
 					dataManager.getFirstMonitor().getLocation(),null,false);
-			for(DeviceData data2: second.getData())
+			dataToRemove1.add(set1);
+			firstItCount++;
+			for(DeviceData set2: second.getData())
 			{
-				Circle c2 = new Circle(dataManager.getSecondMonitor(),second.getMacAddress(),data2.getDistanceFromMonitor(),
+				Circle c2 = new Circle(dataManager.getSecondMonitor(),this.macAddress,set2.getDistanceFromMonitor(),
 						dataManager.getSecondMonitor().getLocation(),null,false);
-				pointsOfX.add(Maths.pointsOfIntersection(c1, c2));
-			}
-		}
-		
-		// Locators from First and Third monitors
-		for(DeviceData data1: first.getData())
-		{
-			Circle c1 = new Circle(dataManager.getFirstMonitor(),first.getMacAddress(),data1.getDistanceFromMonitor(),
-					dataManager.getFirstMonitor().getLocation(),null,false);
-			for(DeviceData data2: third.getData())
-			{
-				Circle c2 = new Circle(dataManager.getThirdMonitor(),third.getMacAddress(),data2.getDistanceFromMonitor(),
-						dataManager.getThirdMonitor().getLocation(),null,false);
-				pointsOfX.add(Maths.pointsOfIntersection(c1, c2));
-			}
-		}
-		
-		// Locators from Second and Third monitors
-		for(DeviceData data1: second.getData())
-		{
-			Circle c1 = new Circle(dataManager.getSecondMonitor(),second.getMacAddress(),data1.getDistanceFromMonitor(),
-					dataManager.getSecondMonitor().getLocation(),null,false);
-			for(DeviceData data2: third.getData())
-			{
-				Circle c2 = new Circle(dataManager.getThirdMonitor(),third.getMacAddress(),data2.getDistanceFromMonitor(),
-						dataManager.getThirdMonitor().getLocation(),null,false);
-				pointsOfX.add(Maths.pointsOfIntersection(c1, c2));
-			}
-		}
-			
-		first.getData().clear();
-		second.getData().clear();
-		third.getData().clear();
-		
-		// Populate list of points found with list of points arrays
-		for(int i = 0; i < pointsOfX.size(); i++)
-		{
-			for(int j = 0; j < pointsOfX.get(i).length; j++)
-			{
-				pointsFound.add(pointsOfX.get(i)[j]);
-			}
-		}
-		
-		Vector2f[] locations = new Vector2f[] {dataManager.getFirstMonitor().getLocation(),
-												dataManager.getSecondMonitor().getLocation(),
-												dataManager.getThirdMonitor().getLocation()};
-		
-		if(!pointsFound.isEmpty())
-		{
-			double lowestMse = Maths.meanSquaredError(pointsFound.get(0), locations, distances);
-			int bestPointIndex = 0;
-			for(int i = 1; i < pointsFound.size(); i++)
-			{
-				double mse = Maths.meanSquaredError(pointsFound.get(i), locations, distances);
-				if(Math.abs(mse) - 0 < lowestMse)
+				if(firstItCount == 1)
 				{
-					lowestMse = mse;
-					bestPointIndex = i;
+					dataToRemove2.add(set2);
+				}
+				secondItCount++;
+				for(DeviceData set3: third.getData()) {
+					Circle c3 = new Circle(dataManager.getThirdMonitor(),this.macAddress,set3.getDistanceFromMonitor(),
+							dataManager.getThirdMonitor().getLocation(),null,false);
+					double[] distances = new double[] {set1.getDistanceFromMonitor(),
+							set2.getDistanceFromMonitor(),
+							set3.getDistanceFromMonitor()};
+					Vector2f[] points_c1_c2 = Maths.pointsOfIntersection(c1, c2);
+					Vector2f[] points_c1_c3 = Maths.pointsOfIntersection(c1, c3);
+					Vector2f[] points_c2_c3 = Maths.pointsOfIntersection(c2, c3);
+					
+					for(int i = 0; i < points_c1_c2.length; i++)
+					{
+						double mse = Maths.meanSquaredError(points_c1_c2[i], ANCHOR_NODES, distances);
+						pointsToMSE.put(mse, points_c1_c2[i]);
+					}
+					
+					for(int i = 0; i < points_c1_c3.length; i++)
+					{
+						double mse = Maths.meanSquaredError(points_c1_c3[i], ANCHOR_NODES, distances);
+						pointsToMSE.put(mse, points_c1_c3[i]);
+					}
+					
+					for(int i = 0; i < points_c2_c3.length; i++)
+					{
+						double mse = Maths.meanSquaredError(points_c2_c3[i], ANCHOR_NODES, distances);
+						pointsToMSE.put(mse, points_c2_c3[i]);
+					}
+					
+					if(secondItCount == 1)
+					{
+						dataToRemove3.add(set3);
+					}
+					
 				}
 			}
-			
-			return pointsFound.get(bestPointIndex);
 		}
-
 		
-		return null;
+		// Find point with least Mean Squared Error
+		double lowestMSE = 1e20; // Set to high number unlikely to be achieved by MSE
+		for(double mse: pointsToMSE.keySet())
+		{
+			if(mse < lowestMSE)
+			{
+				lowestMSE = mse;
+			}
+		}
+		optimisedPoint = pointsToMSE.get(lowestMSE);
+		
+		first.getData().removeAll(dataToRemove1);
+		second.getData().removeAll(dataToRemove2);
+		third.getData().removeAll(dataToRemove3);
+		
+		return optimisedPoint;
+		
 	}
 
 	public Vector2f getLocation() {

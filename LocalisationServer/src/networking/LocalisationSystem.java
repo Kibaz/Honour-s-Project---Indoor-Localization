@@ -36,7 +36,7 @@ public class LocalisationSystem {
 		input.close();
 		
 		// Store array of monitor devices' IP Addresses
-		String[] hosts = new String[] {"192.168.1.4", "192.168.1.9", "192.168.1.15"};
+		String[] hosts = new String[] {"192.168.1.4", "192.168.1.9", "192.168.1.11"};
 		
 		// For each host - connect via SSH and execute python script
 		for(int i = 0; i < hosts.length; i++)

@@ -3,6 +3,7 @@ package networking;
 import java.net.InetAddress;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /*
  * This class will act as a register
@@ -24,7 +25,7 @@ public class MobileClientRegister {
 	 * acquired when using a physical device - the android emulator
 	 * does not support layer 2 properties.
 	 */
-	private static Map<Integer,MobileClient> registeredClients = new HashMap<>();
+	private static ConcurrentHashMap<Integer,MobileClient> registeredClients = new ConcurrentHashMap<>();
 	
 	public static Map<Integer,MobileClient> getRegisteredClients()
 	{

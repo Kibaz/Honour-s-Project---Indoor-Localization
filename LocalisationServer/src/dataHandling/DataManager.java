@@ -31,7 +31,7 @@ public class DataManager {
 		
 		// For living room wider space demo and testing
 		firstMonitor = new Monitor("b8:27:eb:35:2b:60", new Vector2f(0f,0f)); // Position to top left
-		secondMonitor = new Monitor("b8:27:eb:f7:b8:27", new Vector2f(0f,-3.565f)); // Position according to room dimensions
+		secondMonitor = new Monitor("b8:27:eb:e4:39:ee", new Vector2f(0f,-3.565f)); // Position according to room dimensions
 		thirdMonitor = new Monitor("b8:27:eb:01:d1:9d", new Vector2f(3.9f,-3.565f)); // Position according to room dimensions
 	}
 	

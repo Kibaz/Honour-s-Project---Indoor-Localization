@@ -182,9 +182,13 @@ public class Maths {
 	 * text/font.
 	 */
 	
-	public static Vector3f covertCoordinates(Vector3f position)
+	public static Vector3f covertCoordinates(Vector3f position, Camera camera, Matrix4f pm)
 	{
+		
 		Vector4f coordinates = new Vector4f(position.x, position.y, position.z,1f);
+		Matrix4f viewMatrix = Maths.createViewMatrix(camera);
+		Matrix4f.transform(viewMatrix, coordinates, coordinates);
+		Matrix4f.transform(pm, coordinates, coordinates);
 		if(coordinates.w < 0)
 		{
 			return null;

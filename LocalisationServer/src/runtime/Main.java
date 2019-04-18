@@ -98,8 +98,8 @@ public class Main {
 		
 		// Initialise text handler for rendering text
 		TextHandler.init();
-		TextModel addressTag = new TextModel("bc:45:cd:77:6c:98",0.75f,Fonts.arial,new Vector2f(0,0),0.2f,true);
-		TextHandler.removeText(addressTag); // Remove text from renderer
+		//TextModel addressTag = new TextModel("bc:45:cd:77:6c:98",0.75f,Fonts.arial,new Vector2f(0,0),0.2f,true);
+		//TextHandler.removeText(addressTag); // Remove text from renderer
 		
 		/*
 		 * Testing font/text rendering
@@ -241,13 +241,15 @@ public class Main {
 			appServer.updateClients(dataManager);
 			
 			timer+= Window.getDeltaTime();
-			handleDeviceData(dataManager,baseCircle,devicePointers,addressTag);
-			//handleData(dataManager,baseCircle,devicePointers,addressTag);
+			//handleDeviceData(dataManager,baseCircle,devicePointers);
+			//handleData(dataManager,baseCircle,devicePointers);
 			
-			/*for(Device device: dataManager.getFirstMonitor().getDevices())
+			for(Device device: dataManager.getFirstMonitor().getDevices())
 			{
-				device.estimatePositionOnRSSIData(dataManager, devicePointers, baseCircle, addressTag);
-			}*/
+				//device.estimatePositionOnRSSIData(dataManager, devicePointers, baseCircle, addressTag);
+				device.estimatePoisitonWithMSE(dataManager, devicePointers, baseCircle);
+				device.updateAddressTag(camera, render.getProjectionMatrix());
+			}
 			
 			// Carry out rendering
 			for(Device device: devicePointers)
@@ -288,7 +290,7 @@ public class Main {
 		opacity = (float) Math.abs(Math.sin(opacityTimer));
 	}
 	
-	private static void handleDeviceData(DataManager dataManager, Shape baseCircle,List<Device> pointers, TextModel addressTag)
+	private static void handleDeviceData(DataManager dataManager, Shape baseCircle,List<Device> pointers)
 	{
 		for(Device device: dataManager.getFirstMonitor().getDevices())
 		{
@@ -330,17 +332,22 @@ public class Main {
 				float dist2 = Maths.calculateDistanceFromRSSI(device1.getLastState().get(0));
 				float dist3 = Maths.calculateDistanceFromRSSI(device2.getLastState().get(0));
 				
+				
 				Circle locator1 = new Circle(dataManager.getFirstMonitor(),device.getMacAddress(),
 						dist1,dataManager.getFirstMonitor().getLocation(),baseCircle,false);
 				Circle locator2 = new Circle(dataManager.getSecondMonitor(),device.getMacAddress(),
 						dist2,dataManager.getSecondMonitor().getLocation(),baseCircle,false);
 				Circle locator3 = new Circle(dataManager.getThirdMonitor(),device.getMacAddress(),
 						dist3,dataManager.getThirdMonitor().getLocation(),baseCircle,false);
-				
+
 				
 				Vector2f pointOfIntersection = Maths.findPointOfIntersection(locator1, locator2, locator3);
 				if(pointOfIntersection != null)
 				{
+					if(device.getMacAddress().equals("B0:47:BF:92:74:97".toLowerCase()))
+					{
+						System.out.println(pointOfIntersection);
+					}
 					// Create circle based on devices newly found location
 					Circle deviceCircle = new Circle(dataManager.getFirstMonitor(),device.getMacAddress(),
 							0.05f,pointOfIntersection,baseCircle,true);
@@ -359,33 +366,17 @@ public class Main {
 					device.getLocator2().setRadius(0.05f);
 					device.getLocator3().setRadius(0.05f);
 					
-					if(device.getAddressTag() != null)
-					{	
-						// Determine position of the address tag
-						Vector3f tagPos = Maths.covertCoordinates(new Vector3f(device.getLocation().x,
-								device.getLocation().y, 0)); // Z values will be zero as positional data is 2 Dimensional
-						
-						// Modify the address tag's position
-						float offsetX = device.getAddressTag().getMaxLineSize() / 2f;
-						float offsetY = device.getPointer().getMaxRadius();
-						device.getAddressTag().setPosition(new Vector2f(tagPos.x - offsetX,tagPos.y - offsetY));
-					}
-					
 					// If the device has not already been stored
 					if(!pointers.contains(device))
 					{
 						pointers.add(device);
-						addressTag.setContent(device.getMacAddress());
-						addressTag.setColour(1, 1, 1);
-						device.setAddressTag(addressTag);
-						TextHandler.loadText(addressTag);
 					}
 				}
 			}
 		}
 	}
 	
-	private static void handleData(DataManager dataManager, Shape baseCircle, List<Device> devicePointers, TextModel addressTag)
+	private static void handleData(DataManager dataManager, Shape baseCircle, List<Device> devicePointers, TextModel addressTag,Camera camera, Render render)
 	{
 		// Loop through every device registered with the first monitor
 		for(Device device: dataManager.getFirstMonitor().getDevices())
@@ -503,7 +494,7 @@ public class Main {
 								{	
 									// Determine position of the address tag
 									Vector3f tagPos = Maths.covertCoordinates(new Vector3f(device.getLocation().x,
-											device.getLocation().y, 0)); // Z values will be zero as positional data is 2 Dimensional
+											device.getLocation().y, 0),camera,render.getProjectionMatrix()); // Z values will be zero as positional data is 2 Dimensional
 									
 									// Modify the address tag's position
 									float offsetX = device.getAddressTag().getMaxLineSize() / 2f;

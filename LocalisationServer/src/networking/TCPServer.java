@@ -115,10 +115,12 @@ public class TCPServer {
 			 * Must multiply by 1000 as Java handles time
 			 * in milliseconds
 			 */
+			
+			//System.out.println("RSSI " + signal_str  + " mac " + monitor_MAC + "mac 2 " + device_MAC);
+			
 			double receivedTimeStamp = Double.parseDouble(data[4]);
 			// The conversion from double to long will round to nearest second for time-stamps
 			long timeStamp = convertDoubleToLong(receivedTimeStamp);
-			
 			// Get corresponding monitor by its MAC Address
 			Monitor monitor = dataManager.getMonitorByAddress(monitor_MAC);
 			// Get the device by mac address if it already exists
